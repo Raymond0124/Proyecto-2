@@ -44,6 +44,10 @@ namespace Proyecto
             };
             countdown.Start();
 
+            Timer tokenTimer = new Timer { Interval = 10000 }; // cada 10 segundos
+            tokenTimer.Tick += (s, e) => GenerateTokens();
+            tokenTimer.Start();
+
             this.KeyDown += OnKeyDown;
             this.KeyUp += OnKeyUp;
         }
@@ -51,11 +55,17 @@ namespace Proyecto
         private void GeneratePlatforms()
         {
             platforms.Clear();
-            platforms.Add(new Platform(0, 550, 900, 50)); // base
+
+            // Plataforma principal centrada
+            int mainPlatformWidth = 500;
+            int mainPlatformX = (this.ClientSize.Width - mainPlatformWidth) / 2;
+            platforms.Add(new Platform(mainPlatformX, this.ClientSize.Height - 50, mainPlatformWidth, 20));
+
+            // Plataformas aleatorias
             for (int i = 0; i < 5; i++)
             {
                 int x = rnd.Next(50, this.ClientSize.Width - 150);
-                int y = 100 + i * 80; // distancia entre plataformas verticalmente
+                int y = 100 + i * 80;
                 platforms.Add(new Platform(x, y, 150, 20));
             }
         }
@@ -77,21 +87,36 @@ namespace Proyecto
             player1.Update(platforms);
             player2.Update(platforms);
 
-            // Interacción entre jugadores
+            // Reaparición si algún jugador cae fuera de la pantalla
+            if (player1.Y > this.ClientSize.Height)
+            {
+                RespawnPlayer(player1);
+            }
+            if (player2.Y > this.ClientSize.Height)
+            {
+                RespawnPlayer(player2);
+            }
+
+            // Empujón entre jugadores si se tocan
             if (player1.Bounds.IntersectsWith(player2.Bounds))
             {
-                if (player1.X < player2.X)
+                Rectangle intersection = Rectangle.Intersect(player1.Bounds, player2.Bounds);
+                if (intersection.Width > 0)
                 {
-                    player1.X -= 2;
-                    player2.X += 2;
-                }
-                else
-                {
-                    player1.X += 2;
-                    player2.X -= 2;
+                    if (player1.X < player2.X)
+                    {
+                        player1.X -= intersection.Width / 2;
+                        player2.X += intersection.Width / 2;
+                    }
+                    else
+                    {
+                        player1.X += intersection.Width / 2;
+                        player2.X -= intersection.Width / 2;
+                    }
                 }
             }
 
+            // Recolección de tokens
             foreach (var token in tokens)
             {
                 if (!token.Collected && token.Bounds.IntersectsWith(player1.Bounds))
@@ -109,6 +134,15 @@ namespace Proyecto
             Invalidate();
         }
 
+        private void RespawnPlayer(Player player)
+        {
+            Platform p = platforms[rnd.Next(platforms.Count)];
+            player.X = p.X + (p.Width - player.Width) / 2;
+            player.Y = p.Y - player.Height;
+            player.SpeedX = 0;
+            player.SpeedY = 0;
+        }
+
         private void OnKeyDown(object sender, KeyEventArgs e)
         {
             player1.KeyDown(e.KeyCode);
@@ -124,6 +158,7 @@ namespace Proyecto
         protected override void OnPaint(PaintEventArgs e)
         {
             Graphics g = e.Graphics;
+
             foreach (var platform in platforms)
                 platform.Draw(g);
 
@@ -133,6 +168,7 @@ namespace Proyecto
             player1.Draw(g, Pens.Blue);
             player2.Draw(g, Pens.Red);
         }
+
         private void InitializeComponent()
         {
             this.SuspendLayout();
