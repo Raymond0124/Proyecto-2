@@ -11,7 +11,8 @@ namespace Proyecto
         Timer gameTimer = new Timer();
         List<Platform> platforms = new();
         List<Token> tokens = new();
-        Player player1, player2;
+        List<Player> players = new();
+
         Random rnd = new Random();
         int gameTime = 60;
 
@@ -20,8 +21,11 @@ namespace Proyecto
             InitializeComponent();
             this.DoubleBuffered = true;
 
-            player1 = new Player(100, 300, Keys.A, Keys.D, Keys.W);
-            player2 = new Player(700, 300, Keys.Left, Keys.Right, Keys.Up);
+            players.Add(new Player(100, 300, ControlType.Keyboard, 0, Keys.A, Keys.D, Keys.W));       // Jugador 1 (WASD)
+            players.Add(new Player(700, 300, ControlType.Keyboard, 0, Keys.Left, Keys.Right, Keys.Up)); // Jugador 2 (Flechas)
+            players.Add(new Player(400, 100, ControlType.Gamepad, 0)); // Jugador 3 (control 1)
+            players.Add(new Player(500, 100, ControlType.Gamepad, 1)); // Jugador 4 (control 2)
+
 
             GeneratePlatforms();
             GenerateTokens();
@@ -39,7 +43,12 @@ namespace Proyecto
                 {
                     countdown.Stop();
                     gameTimer.Stop();
-                    MessageBox.Show($"Juego terminado.\nP1: {player1.Score} puntos\nP2: {player2.Score} puntos");
+                    MessageBox.Show($"Juego terminado.\n" +
+                $"P1: {players[0].Score} puntos\n" +
+                $"P2: {players[1].Score} puntos\n" +
+                $"P3: {players[2].Score} puntos\n" +
+                $"P4: {players[3].Score} puntos");
+
                 }
             };
             countdown.Start();
@@ -84,52 +93,59 @@ namespace Proyecto
 
         private void GameLoop(object sender, EventArgs e)
         {
-            player1.Update(platforms);
-            player2.Update(platforms);
 
-            // Reaparición si algún jugador cae fuera de la pantalla
-            if (player1.Y > this.ClientSize.Height)
+            
+            foreach (var player in players)
+                player.Update(platforms);
+
+            foreach (var player in players)
             {
-                RespawnPlayer(player1);
+                if (player.Y > this.ClientSize.Height)
+                    RespawnPlayer(player);
             }
-            if (player2.Y > this.ClientSize.Height)
-            {
-                RespawnPlayer(player2);
-            }
+
 
             // Empujón entre jugadores si se tocan
-            if (player1.Bounds.IntersectsWith(player2.Bounds))
+            for (int i = 0; i < players.Count; i++)
             {
-                Rectangle intersection = Rectangle.Intersect(player1.Bounds, player2.Bounds);
-                if (intersection.Width > 0)
+                for (int j = i + 1; j < players.Count; j++)
                 {
-                    if (player1.X < player2.X)
+                    var a = players[i];
+                    var b = players[j];
+                    if (a.Bounds.IntersectsWith(b.Bounds))
                     {
-                        player1.X -= intersection.Width / 2;
-                        player2.X += intersection.Width / 2;
-                    }
-                    else
-                    {
-                        player1.X += intersection.Width / 2;
-                        player2.X -= intersection.Width / 2;
+                        Rectangle inter = Rectangle.Intersect(a.Bounds, b.Bounds);
+                        if (inter.Width > 0)
+                        {
+                            if (a.X < b.X)
+                            {
+                                a.X -= inter.Width / 2;
+                                b.X += inter.Width / 2;
+                            }
+                            else
+                            {
+                                a.X += inter.Width / 2;
+                                b.X -= inter.Width / 2;
+                            }
+                        }
                     }
                 }
             }
 
-            // Recolección de tokens
+           
             foreach (var token in tokens)
             {
-                if (!token.Collected && token.Bounds.IntersectsWith(player1.Bounds))
+                foreach (var player in players)
                 {
-                    token.Collected = true;
-                    player1.Score++;
-                }
-                if (!token.Collected && token.Bounds.IntersectsWith(player2.Bounds))
-                {
-                    token.Collected = true;
-                    player2.Score++;
+                    if (!token.Collected && token.Bounds.IntersectsWith(player.Bounds))
+                    {
+                        token.Collected = true;
+                        player.Score++;
+                        break; // solo 1 jugador puede recogerlo
+                    }
                 }
             }
+
 
             Invalidate();
         }
@@ -145,15 +161,15 @@ namespace Proyecto
 
         private void OnKeyDown(object sender, KeyEventArgs e)
         {
-            player1.KeyDown(e.KeyCode);
-            player2.KeyDown(e.KeyCode);
+            foreach (var player in players)
+                player.KeyDown(e.KeyCode);
         }
-
         private void OnKeyUp(object sender, KeyEventArgs e)
         {
-            player1.KeyUp(e.KeyCode);
-            player2.KeyUp(e.KeyCode);
+            foreach (var player in players)
+                player.KeyUp(e.KeyCode);
         }
+
 
         protected override void OnPaint(PaintEventArgs e)
         {
@@ -165,8 +181,10 @@ namespace Proyecto
             foreach (var token in tokens)
                 token.Draw(g);
 
-            player1.Draw(g, Pens.Blue);
-            player2.Draw(g, Pens.Red);
+            Pen[] pens = { Pens.Blue, Pens.Red, Pens.Green, Pens.Orange };
+            for (int i = 0; i < players.Count; i++)
+                players[i].Draw(g, pens[i % pens.Length]);
+
         }
 
         private void InitializeComponent()
