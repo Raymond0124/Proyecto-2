@@ -8,24 +8,46 @@ namespace Proyecto
 {
     public partial class MainForm : Form
     {
-        Timer gameTimer = new Timer();
-        List<Platform> platforms = new();
-        List<Token> tokens = new();
-        List<Player> players = new();
+        private Timer gameTimer = new Timer();
+        private List<Platform> platforms = new();
+        private List<Token> tokens = new();
+        private List<Player> players = new();
+        private Random rnd = new Random();
+        private int gameTime = 60;
 
-        Random rnd = new Random();
-        int gameTime = 60;
+        // Nueva variable para animar la construcción del árbol
+        private bool treeUpdated = false;
+
+        // Panel para mostrar árboles B
+        private Panel treePanel;
+
+        // Colores para los jugadores
+        private Color[] playerColors = {
+            Color.RoyalBlue,
+            Color.Crimson,
+            Color.ForestGreen,
+            Color.DarkOrange
+        };
 
         public MainForm()
         {
             InitializeComponent();
             this.DoubleBuffered = true;
 
+            // Configurar el panel de árboles
+            ConfigureTreePanel();
+
+            // Inicializar jugadores
             players.Add(new Player(100, 300, ControlType.Keyboard, 0, Keys.A, Keys.D, Keys.W));       // Jugador 1 (WASD)
             players.Add(new Player(700, 300, ControlType.Keyboard, 0, Keys.Left, Keys.Right, Keys.Up)); // Jugador 2 (Flechas)
             players.Add(new Player(400, 100, ControlType.Gamepad, 0)); // Jugador 3 (control 1)
             players.Add(new Player(500, 100, ControlType.Gamepad, 1)); // Jugador 4 (control 2)
 
+            // Inicializa los BTree de cada jugador
+            foreach (var player in players)
+            {
+                player.Tree = new BTree(3); // Grado 3 para empezar
+            }
 
             GeneratePlatforms();
             GenerateTokens();
@@ -44,21 +66,131 @@ namespace Proyecto
                     countdown.Stop();
                     gameTimer.Stop();
                     MessageBox.Show($"Juego terminado.\n" +
-                $"P1: {players[0].Score} puntos\n" +
-                $"P2: {players[1].Score} puntos\n" +
-                $"P3: {players[2].Score} puntos\n" +
-                $"P4: {players[3].Score} puntos");
-
+                    $"P1: {players[0].Score} puntos\n" +
+                    $"P2: {players[1].Score} puntos\n" +
+                    $"P3: {players[2].Score} puntos\n" +
+                    $"P4: {players[3].Score} puntos");
                 }
             };
             countdown.Start();
 
-            Timer tokenTimer = new Timer { Interval = 10000 }; // cada 10 segundos
+            Timer tokenTimer = new Timer { Interval = 5000 }; // cada 5 segundos
             tokenTimer.Tick += (s, e) => GenerateTokens();
             tokenTimer.Start();
 
             this.KeyDown += OnKeyDown;
             this.KeyUp += OnKeyUp;
+        }
+
+        private void ConfigureTreePanel()
+        {
+            // Crear un panel para mostrar los árboles B
+            treePanel = new Panel
+            {
+                Dock = DockStyle.Right,
+                Width = 250,
+                BackColor = Color.WhiteSmoke,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            this.Controls.Add(treePanel);
+            treePanel.Paint += TreePanel_Paint;
+        }
+
+        private void TreePanel_Paint(object sender, PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+
+            // Dibujar título del panel
+            g.DrawString("Árboles B en Tiempo Real", new Font("Arial", 12, FontStyle.Bold), Brushes.Black, 10, 10);
+
+            // Dibujar línea separadora
+            g.DrawLine(Pens.Gray, 0, 40, treePanel.Width, 40);
+
+            // Área para dibujar árboles B de ejemplo
+            DrawTreeExamples(g);
+
+            // Dibujar árboles de cada jugador
+            int y = 250;
+            for (int i = 0; i < players.Count; i++)
+            {
+                // Sólo mostrar si el jugador tiene tokens recolectados
+                if (players[i].Score > 0)
+                {
+                    string playerName = $"P{i + 1}: {players[i].Score} pts";
+                    g.DrawString(playerName, new Font("Arial", 10, FontStyle.Bold),
+                                new SolidBrush(playerColors[i % playerColors.Length]), 10, y - 20);
+
+                    // Dibujar el árbol B del jugador
+                    DrawCompactBTree(g, players[i].Tree, 20, y, playerColors[i % playerColors.Length]);
+
+                    y += 100; // Espacio vertical entre árboles de jugadores
+                }
+            }
+        }
+
+        private void DrawTreeExamples(Graphics g)
+        {
+            // Ejemplos de estructuras de árboles B similares a la imagen
+            Font smallFont = new Font("Arial", 8);
+
+            // Ejemplo 1: Árbol simple con un nodo
+            g.DrawString("B-Tree", new Font("Arial", 10, FontStyle.Bold), Brushes.Black, 10, 50);
+            DrawExampleNode(g, 75, 75, new[] { "2" }, null, Brushes.LightGreen);
+
+            // Ejemplo 2: Árbol con nodo raíz y dos hijos
+            DrawExampleNode(g, 75, 125, new[] { "5" }, null, Brushes.LightGreen);
+            DrawExampleNode(g, 50, 155, new[] { "3" }, null, Brushes.LightGreen);
+            DrawExampleNode(g, 100, 155, new[] { "7" }, null, Brushes.LightGreen);
+            g.DrawLine(Pens.Black, 75, 85, 50, 155);
+            g.DrawLine(Pens.Black, 75, 85, 100, 155);
+
+            // Ejemplo 3: Árbol con múltiples claves
+            DrawExampleNode(g, 75, 195, new[] { "3", "6" }, null, Brushes.LightGreen);
+            g.DrawString("Recoge tokens", smallFont, Brushes.DarkGray, 110, 195);
+            g.DrawString("para construir", smallFont, Brushes.DarkGray, 110, 210);
+        }
+
+        private void DrawExampleNode(Graphics g, int x, int y, string[] keys, Pen outline = null, Brush fill = null)
+        {
+            if (outline == null) outline = Pens.Black;
+            if (fill == null) fill = Brushes.White;
+
+            int width = keys.Length * 15;
+            g.FillEllipse(fill, x - width / 2, y - 10, width, 20);
+            g.DrawEllipse(outline, x - width / 2, y - 10, width, 20);
+
+            // Dibujar las claves
+            for (int i = 0; i < keys.Length; i++)
+            {
+                int keyX = x - width / 2 + i * 15 + 7;
+                g.DrawString(keys[i], new Font("Arial", 8), Brushes.Black, keyX - 4, y - 7);
+            }
+        }
+
+        private void DrawCompactBTree(Graphics g, BTree tree, int x, int y, Color color)
+        {
+            if (tree.Root != null)
+            {
+                // Usar colores personalizados por jugador
+                Brush nodeBrush = new SolidBrush(Color.FromArgb(180, color));
+                Pen nodePen = new Pen(Color.FromArgb(240, color), 2);
+
+                // Dibujar el árbol en un tamaño más compacto para el panel lateral
+                tree.Draw(g, x + 100, y);
+
+                // Indicar actualización visual si el árbol cambió
+                if (treeUpdated)
+                {
+                    g.DrawString("¡Actualizado!", new Font("Arial", 8, FontStyle.Bold),
+                                Brushes.Green, x + 150, y - 15);
+                    treeUpdated = false;
+                }
+            }
+            else
+            {
+                g.DrawString("Árbol vacío", new Font("Arial", 8), Brushes.Gray, x, y);
+            }
         }
 
         private void GeneratePlatforms()
@@ -67,13 +199,13 @@ namespace Proyecto
 
             // Plataforma principal centrada
             int mainPlatformWidth = 500;
-            int mainPlatformX = (this.ClientSize.Width - mainPlatformWidth) / 2;
+            int mainPlatformX = (this.ClientSize.Width - treePanel.Width - mainPlatformWidth) / 2;
             platforms.Add(new Platform(mainPlatformX, this.ClientSize.Height - 50, mainPlatformWidth, 20));
 
             // Plataformas aleatorias
             for (int i = 0; i < 5; i++)
             {
-                int x = rnd.Next(50, this.ClientSize.Width - 150);
+                int x = rnd.Next(50, this.ClientSize.Width - treePanel.Width - 150);
                 int y = 100 + i * 80;
                 platforms.Add(new Platform(x, y, 150, 20));
             }
@@ -82,9 +214,9 @@ namespace Proyecto
         private void GenerateTokens()
         {
             tokens.Clear();
-            for (int i = 0; i < 3; i++)
+            for (int i = 0; i < 5; i++) // Aumentamos a 5 tokens
             {
-                int x = rnd.Next(100, this.ClientSize.Width - 100);
+                int x = rnd.Next(100, this.ClientSize.Width - treePanel.Width - 100);
                 int y = rnd.Next(100, this.ClientSize.Height - 100);
                 int value = rnd.Next(1, 100);
                 tokens.Add(new Token(x, y, value));
@@ -93,8 +225,6 @@ namespace Proyecto
 
         private void GameLoop(object sender, EventArgs e)
         {
-
-            
             foreach (var player in players)
                 player.Update(platforms);
 
@@ -103,7 +233,6 @@ namespace Proyecto
                 if (player.Y > this.ClientSize.Height)
                     RespawnPlayer(player);
             }
-
 
             // Empujón entre jugadores si se tocan
             for (int i = 0; i < players.Count; i++)
@@ -132,7 +261,8 @@ namespace Proyecto
                 }
             }
 
-           
+            bool anyTokenCollected = false;
+
             foreach (var token in tokens)
             {
                 foreach (var player in players)
@@ -141,11 +271,40 @@ namespace Proyecto
                     {
                         token.Collected = true;
                         player.Score++;
-                        break; // solo 1 jugador puede recogerlo
+
+                        // Insertar el token en el árbol del jugador
+                        player.Tree.Insert(token.Value);
+
+                        // Marcar que se actualizó un árbol
+                        treeUpdated = true;
+                        anyTokenCollected = true;
+
+                        // Actualizar inmediatamente el panel de árboles
+                        treePanel.Invalidate();
+
+                        break;
                     }
                 }
             }
 
+            // Limpiar tokens colectados
+            tokens.RemoveAll(t => t.Collected);
+
+            // Si se recogió algún token, generar uno nuevo después de un pequeño retraso
+            if (anyTokenCollected && tokens.Count < 5)
+            {
+                Timer newTokenTimer = new Timer { Interval = 1000 };
+                newTokenTimer.Tick += (s, args) =>
+                {
+                    int x = rnd.Next(100, this.ClientSize.Width - treePanel.Width - 100);
+                    int y = rnd.Next(100, this.ClientSize.Height - 100);
+                    int value = rnd.Next(1, 100);
+                    tokens.Add(new Token(x, y, value));
+                    newTokenTimer.Stop();
+                    newTokenTimer.Dispose();
+                };
+                newTokenTimer.Start();
+            }
 
             Invalidate();
         }
@@ -164,33 +323,44 @@ namespace Proyecto
             foreach (var player in players)
                 player.KeyDown(e.KeyCode);
         }
+
         private void OnKeyUp(object sender, KeyEventArgs e)
         {
             foreach (var player in players)
                 player.KeyUp(e.KeyCode);
         }
 
-
         protected override void OnPaint(PaintEventArgs e)
         {
             Graphics g = e.Graphics;
 
+            // Dibujar fondo
+            g.Clear(Color.LightSkyBlue);
+
+            // Texto en la parte superior
+            Font titleFont = new Font("Arial", 16, FontStyle.Bold);
+            g.DrawString("Build B-Tree!", titleFont, Brushes.Black, (this.ClientSize.Width - treePanel.Width) / 2 - 80, 20);
+
+            // Dibujar plataformas
             foreach (var platform in platforms)
                 platform.Draw(g);
 
+            // Dibujar tokens
             foreach (var token in tokens)
                 token.Draw(g);
 
-            Pen[] pens = { Pens.Blue, Pens.Red, Pens.Green, Pens.Orange };
+            // Dibujar jugadores con colores específicos
             for (int i = 0; i < players.Count; i++)
-                players[i].Draw(g, pens[i % pens.Length]);
-
+            {
+                Pen playerPen = new Pen(playerColors[i % playerColors.Length], 2);
+                players[i].Draw(g, playerPen);
+            }
         }
 
         private void InitializeComponent()
         {
             this.SuspendLayout();
-            this.ClientSize = new Size(900, 600);
+            this.ClientSize = new Size(1150, 600);  // Ventana más ancha para el panel lateral
             this.Name = "MainForm";
             this.Text = "Super Smash Trees";
             this.ResumeLayout(false);

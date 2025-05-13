@@ -20,6 +20,9 @@ namespace Proyecto
         private bool onGround = false;
         private bool jumping = false;
 
+        public BTree Tree; // nuevo
+
+        // ✅ Único constructor
         public Player(int x, int y, ControlType type, int index = 0, Keys left = Keys.None, Keys right = Keys.None, Keys jump = Keys.None)
         {
             X = x;
@@ -29,6 +32,7 @@ namespace Proyecto
             this.left = left;
             this.right = right;
             this.jump = jump;
+            Tree = new BTree(3); // Grado 3 para empezar
         }
 
         public Rectangle Bounds => new Rectangle(X, Y, Width, Height);
@@ -41,11 +45,9 @@ namespace Proyecto
                     Console.WriteLine($"[Player] Control {gamepadIndex} NO conectado");
                 else
                     Console.WriteLine($"[Player] Control {gamepadIndex} conectado");
-                
 
                 HandleGamepadInput();
             }
-
 
             SpeedY += 1; // gravedad
             X += SpeedX;
@@ -69,35 +71,28 @@ namespace Proyecto
             }
         }
 
-
         private void HandleGamepadInput()
         {
             if (XInput.GetState(gamepadIndex, out XInput.GamepadState state) == XInput.ERROR_SUCCESS)
             {
                 var gamepad = state.Gamepad;
-
                 SpeedX = 0;
 
-                // Usar el thumbstick izquierdo para moverse
                 float normLX = Math.Max(-1, (float)gamepad.sThumbLX / 32767);
                 Console.WriteLine($"[Player] ThumbLX: {gamepad.sThumbLX}, normLX: {normLX}");
-                
 
                 if (normLX < -0.5f)
                     SpeedX = -5;
                 else if (normLX > 0.5f)
                     SpeedX = 5;
 
-                // Saltar con botón A
                 if ((gamepad.wButtons & XInput.XINPUT_GAMEPAD_A) != 0 && onGround && !jumping)
                 {
                     SpeedY = -15;
                     jumping = true;
                 }
-                
             }
         }
-
 
         public void KeyDown(Keys key)
         {
