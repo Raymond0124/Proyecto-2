@@ -88,7 +88,7 @@ namespace Proyecto
             treePanel = new Panel
             {
                 Dock = DockStyle.Right,
-                Width = 250,
+                Width = 400,
                 BackColor = Color.WhiteSmoke,
                 BorderStyle = BorderStyle.FixedSingle
             };
@@ -177,7 +177,7 @@ namespace Proyecto
                 Pen nodePen = new Pen(Color.FromArgb(240, color), 2);
 
                 // Dibujar el árbol en un tamaño más compacto para el panel lateral
-                tree.Draw(g, x + 100, y);
+                tree.Draw(g, x + 180, y);
 
                 // Indicar actualización visual si el árbol cambió
                 if (treeUpdated)
@@ -202,11 +202,28 @@ namespace Proyecto
             int mainPlatformX = (this.ClientSize.Width - treePanel.Width - mainPlatformWidth) / 2;
             platforms.Add(new Platform(mainPlatformX, this.ClientSize.Height - 50, mainPlatformWidth, 20));
 
-            // Plataformas aleatorias
-            for (int i = 0; i < 5; i++)
+            
+
+            int maxWidth = this.ClientSize.Width - treePanel.Width;
+            int maxHeight = this.ClientSize.Height;
+            // Define zonas de aparición para las plataformas aleatorias (en porcentaje del área jugable)
+            var zones = new (float minX, float maxX, float minY, float maxY)[]
             {
-                int x = rnd.Next(50, this.ClientSize.Width - treePanel.Width - 150);
-                int y = 100 + i * 80;
+        (0.0f, 0.3f, 0.72f, 0.75f),
+        (0.4f, 0.6f, 0.75f, 0.75f),
+        (0.7f, 1f, 0.73f, 0.75f),
+        (0.1f, 0.3f, 0.45f, 0.45f),
+        (0.4f, 0.6f, 0.45f, 0.48f),
+        (0.7f, 0.9f, 0.45f, 0.47f),
+        (0.4f, 0.7f, 0.6f, 0.6f),
+        
+            };
+
+            // Generar las plataformas en sus respectivas zonas
+            foreach (var zone in zones)
+            {
+                int x = rnd.Next((int)(zone.minX * maxWidth), (int)(zone.maxX * maxWidth) - 150);
+                int y = rnd.Next((int)(zone.minY * maxHeight), (int)(zone.maxY * maxHeight));
                 platforms.Add(new Platform(x, y, 150, 20));
             }
         }

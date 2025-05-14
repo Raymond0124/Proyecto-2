@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
 
+
 namespace Proyecto
 {
     public class BTreeNode
@@ -23,52 +24,74 @@ namespace Proyecto
         }
 
         // Método mejorado de visualización para dibujar el árbol B
-        public void Traverse(Graphics g, Font font, Brush nodeBrush, Pen nodePen, int x, int y, int horizontalSpacing, int verticalSpacing)
+        public void Traverse(Graphics g, Brush nodeBrush, Pen nodePen, int x, int y, int horizontalSpacing, int verticalSpacing, int depth, float scale)
+
+
         {
+
             if (KeyCount == 0) return;
 
-            // Calcula el ancho total de este nodo
-            int nodeWidth = Math.Max(KeyCount * 30, 30); // Mínimo 30 pixels de ancho
-            int nodeHeight = 30;
+            
+           
 
-            // Dibuja el nodo como un rectángulo redondeado
-            g.FillRectangle(nodeBrush, x - nodeWidth / 2, y, nodeWidth, nodeHeight);
-            g.DrawRectangle(nodePen, x - nodeWidth / 2, y, nodeWidth, nodeHeight);
+            float scaleFactor = 1.0f - depth * 0.1f; // Disminuye 10% por nivel
+            if (scaleFactor < 0.5f) scaleFactor = 0.5f; // No más pequeño que 50%
 
-            // Dibuja líneas verticales para separar las claves dentro del nodo
+            Font adjustedFont = new Font("Arial", 12 * scale, FontStyle.Bold);
+            int nodeHeight = (int)(30 * scale);
+            int baseNodeWidth = 35;
+            int nodeWidth = Math.Max((int)(KeyCount * baseNodeWidth * scale), 30);
+            ;
+            int currentX = x - nodeWidth / 2;
+
+            // Dibuja el nodo actual
+            g.FillRectangle(nodeBrush, currentX, y, nodeWidth, nodeHeight);
+            g.DrawRectangle(nodePen, currentX, y, nodeWidth, nodeHeight);
+
             for (int i = 1; i < KeyCount; i++)
             {
-                int dividerX = x - nodeWidth / 2 + i * (nodeWidth / KeyCount);
+                int dividerX = currentX + i * (nodeWidth / KeyCount);
                 g.DrawLine(nodePen, dividerX, y, dividerX, y + nodeHeight);
             }
 
-            // Dibuja las claves
+            // Ajustar tamaño de fuente si hay muchas claves// Ajustar tamaño de fuente dinámicamente según el número de claves
+
+
+
             for (int i = 0; i < KeyCount; i++)
             {
                 int keyX = x - nodeWidth / 2 + i * (nodeWidth / KeyCount) + (nodeWidth / KeyCount / 2);
-                g.DrawString(Keys[i].ToString(), font, Brushes.Black, keyX - 8, y + 5);
+                g.DrawString(Keys[i].ToString(), adjustedFont, Brushes.Black, keyX - 8, y + 5);
             }
 
-            // Si no es hoja, dibuja los hijos recursivamente
+
+            // Dibujar hijos
             if (!IsLeaf)
             {
-                // Calcular el ancho total para los hijos
-                int childrenWidth = (KeyCount + 1) * horizontalSpacing;
-                int startX = x - childrenWidth / 2 + horizontalSpacing / 2;
+                int totalWidth = GetSubtreeWidth(horizontalSpacing);
+                int childX = x - totalWidth / 2;
 
-                // Dibujar los hijos y conectarlos con líneas
                 for (int i = 0; i <= KeyCount; i++)
                 {
                     if (Children[i] != null)
                     {
-                        int childX = startX + i * horizontalSpacing;
+                        int subTreeWidth = Children[i].GetSubtreeWidth(horizontalSpacing);
+                        int childCenterX = childX + subTreeWidth / 2;
                         int childY = y + verticalSpacing;
 
-                        // Dibuja la línea que conecta al hijo
-                        g.DrawLine(nodePen, x, y + nodeHeight, childX, childY);
+                        // Línea hacia hijo
+                        g.DrawLine(nodePen, x, y + nodeHeight, childCenterX, childY);
 
-                        // Dibuja el subárbol del hijo
-                        Children[i].Traverse(g, font, nodeBrush, nodePen, childX, childY, horizontalSpacing / 2, verticalSpacing);
+                        // Llamada recursiva
+                        Children[i].Traverse(g, nodeBrush, nodePen, childCenterX, childY, Math.Max(horizontalSpacing / 2, 100), verticalSpacing, depth + 1, scale);
+
+
+
+                        childX += subTreeWidth;
+                    }
+                    else
+                    {
+                        childX += horizontalSpacing; // espacio vacío para hijos nulos
                     }
                 }
             }
@@ -132,6 +155,27 @@ namespace Proyecto
             Keys[i] = y.Keys[Degree - 1];
             KeyCount++;
         }
+
+        public int GetSubtreeWidth(int horizontalSpacing)
+        {
+            if (IsLeaf || Children.All(c => c == null))
+                return Math.Max(KeyCount * 30, 30); // ancho mínimo de nodo
+
+            int width = 0;
+            for (int i = 0; i <= KeyCount; i++)
+            {
+                if (Children[i] != null)
+                {
+                    width += Children[i].GetSubtreeWidth(horizontalSpacing);
+                }
+                else
+                {
+                    width += horizontalSpacing; // espacio en blanco para hijos nulos
+                }
+            }
+            return width;
+        }
+
     }
 
     public class BTree
@@ -142,7 +186,8 @@ namespace Proyecto
         // Colores y estilos para la visualización
         private Brush nodeBrush = Brushes.LightGreen;
         private Pen nodePen = new Pen(Color.Black, 2);
-        private Font nodeFont = new Font("Arial", 12, FontStyle.Bold);
+        private Font nodeFont = new Font("Arial", 7, FontStyle.Bold);
+        
 
         public BTree(int degree)
         {
@@ -190,21 +235,60 @@ namespace Proyecto
             }, null, 500, System.Threading.Timeout.Infinite);
         }
 
+        private float CalculateScale()
+        {
+            if (Root == null)
+                return 1.0f;
+
+            // Escala basada en el número total de claves o niveles
+            int totalKeys = CountKeys(Root);
+            int maxKeysBeforeScaling = 10; // puedes ajustar este número
+
+            // Escala siempre comienza más pequeña, y se reduce más si crece
+            float scale = 0.6f; // escala inicial más pequeña (ajústalo si quieres)
+
+            if (totalKeys > maxKeysBeforeScaling)
+            {
+                scale -= 0.03f * (totalKeys - maxKeysBeforeScaling); // disminuye 3% por clave extra
+                if (scale < 0.3f) scale = 0.3f; // mínimo 30% del tamaño original
+            }
+
+
+            return scale;
+        }
+
+        private int CountKeys(BTreeNode node)
+        {
+            if (node == null) return 0;
+
+            int count = node.KeyCount;
+
+            for (int i = 0; i <= node.KeyCount; i++)
+            {
+                if (node.Children[i] != null)
+                    count += CountKeys(node.Children[i]);
+            }
+
+            return count;
+        }
+
+
         public void Draw(Graphics g, int x, int y)
         {
+            float scale = CalculateScale();
+
             if (Root != null)
             {
-                // Ajusta estos valores para cambiar el espaciado del árbol
-                int horizontalSpacing = 120; // Espacio horizontal entre nodos hermanos
-                int verticalSpacing = 70;    // Espacio vertical entre niveles
+                int horizontalSpacing = (int)(180 * scale);
+                int verticalSpacing = (int)(70 * scale);
 
-                Root.Traverse(g, nodeFont, nodeBrush, nodePen, x, y, horizontalSpacing, verticalSpacing);
+                Root.Traverse(g, nodeBrush, nodePen, x, y, horizontalSpacing, verticalSpacing, 0, scale);
             }
             else
             {
-                // Si el árbol está vacío, muestra un mensaje
                 g.DrawString("Árbol B vacío", new Font("Arial", 10), Brushes.Black, x, y);
             }
         }
+
     }
 }
