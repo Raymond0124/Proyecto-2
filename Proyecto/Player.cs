@@ -20,6 +20,8 @@ namespace Proyecto
         private bool onGround = false;
         private bool jumping = false;
 
+
+
         public BTree Tree; // nuevo
 
         // ✅ Único constructor
@@ -132,5 +134,6 @@ namespace Proyecto
             g.DrawLine(pen, centerX, Y + 40, X, Y + 60);
             g.DrawLine(pen, centerX, Y + 40, X + Width, Y + 60);
         }
-    }
+
+    }    
 }

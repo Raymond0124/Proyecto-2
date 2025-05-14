@@ -15,6 +15,11 @@ namespace Proyecto
         private Random rnd = new Random();
         private int gameTime = 60;
 
+
+
+
+
+
         // Nueva variable para animar la construcción del árbol
         private bool treeUpdated = false;
 
@@ -108,7 +113,7 @@ namespace Proyecto
             g.DrawLine(Pens.Gray, 0, 40, treePanel.Width, 40);
 
             // Área para dibujar árboles B de ejemplo
-            DrawTreeExamples(g);
+
 
             // Dibujar árboles de cada jugador
             int y = 250;
@@ -119,7 +124,7 @@ namespace Proyecto
                 {
                     string playerName = $"P{i + 1}: {players[i].Score} pts";
                     g.DrawString(playerName, new Font("Arial", 10, FontStyle.Bold),
-                                new SolidBrush(playerColors[i % playerColors.Length]), 10, y - 20);
+                                new SolidBrush(playerColors[i % playerColors.Length]), 10, y - 200);
 
                     // Dibujar el árbol B del jugador
                     DrawCompactBTree(g, players[i].Tree, 20, y, playerColors[i % playerColors.Length]);
@@ -129,27 +134,8 @@ namespace Proyecto
             }
         }
 
-        private void DrawTreeExamples(Graphics g)
-        {
-            // Ejemplos de estructuras de árboles B similares a la imagen
-            Font smallFont = new Font("Arial", 8);
 
-            // Ejemplo 1: Árbol simple con un nodo
-            g.DrawString("B-Tree", new Font("Arial", 10, FontStyle.Bold), Brushes.Black, 10, 50);
-            DrawExampleNode(g, 75, 75, new[] { "2" }, null, Brushes.LightGreen);
 
-            // Ejemplo 2: Árbol con nodo raíz y dos hijos
-            DrawExampleNode(g, 75, 125, new[] { "5" }, null, Brushes.LightGreen);
-            DrawExampleNode(g, 50, 155, new[] { "3" }, null, Brushes.LightGreen);
-            DrawExampleNode(g, 100, 155, new[] { "7" }, null, Brushes.LightGreen);
-            g.DrawLine(Pens.Black, 75, 85, 50, 155);
-            g.DrawLine(Pens.Black, 75, 85, 100, 155);
-
-            // Ejemplo 3: Árbol con múltiples claves
-            DrawExampleNode(g, 75, 195, new[] { "3", "6" }, null, Brushes.LightGreen);
-            g.DrawString("Recoge tokens", smallFont, Brushes.DarkGray, 110, 195);
-            g.DrawString("para construir", smallFont, Brushes.DarkGray, 110, 210);
-        }
 
         private void DrawExampleNode(Graphics g, int x, int y, string[] keys, Pen outline = null, Brush fill = null)
         {
@@ -177,13 +163,13 @@ namespace Proyecto
                 Pen nodePen = new Pen(Color.FromArgb(240, color), 2);
 
                 // Dibujar el árbol en un tamaño más compacto para el panel lateral
-                tree.Draw(g, x + 180, y);
+                tree.Draw(g, x + 180, y - 180);
 
                 // Indicar actualización visual si el árbol cambió
                 if (treeUpdated)
                 {
                     g.DrawString("¡Actualizado!", new Font("Arial", 8, FontStyle.Bold),
-                                Brushes.Green, x + 150, y - 15);
+                                Brushes.Green, x + 150, y - 200);
                     treeUpdated = false;
                 }
             }
@@ -202,7 +188,7 @@ namespace Proyecto
             int mainPlatformX = (this.ClientSize.Width - treePanel.Width - mainPlatformWidth) / 2;
             platforms.Add(new Platform(mainPlatformX, this.ClientSize.Height - 50, mainPlatformWidth, 20));
 
-            
+
 
             int maxWidth = this.ClientSize.Width - treePanel.Width;
             int maxHeight = this.ClientSize.Height;
@@ -216,7 +202,7 @@ namespace Proyecto
         (0.4f, 0.6f, 0.45f, 0.48f),
         (0.7f, 0.9f, 0.45f, 0.47f),
         (0.4f, 0.7f, 0.6f, 0.6f),
-        
+
             };
 
             // Generar las plataformas en sus respectivas zonas
@@ -227,6 +213,7 @@ namespace Proyecto
                 platforms.Add(new Platform(x, y, 150, 20));
             }
         }
+
 
         private void GenerateTokens()
         {
@@ -303,6 +290,7 @@ namespace Proyecto
                     }
                 }
             }
+
 
             // Limpiar tokens colectados
             tokens.RemoveAll(t => t.Collected);

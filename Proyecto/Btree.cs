@@ -31,8 +31,8 @@ namespace Proyecto
 
             if (KeyCount == 0) return;
 
-            
-           
+
+
 
             float scaleFactor = 1.0f - depth * 0.1f; // Disminuye 10% por nivel
             if (scaleFactor < 0.5f) scaleFactor = 0.5f; // No más pequeño que 50%
@@ -176,6 +176,7 @@ namespace Proyecto
             return width;
         }
 
+
     }
 
     public class BTree
@@ -187,7 +188,7 @@ namespace Proyecto
         private Brush nodeBrush = Brushes.LightGreen;
         private Pen nodePen = new Pen(Color.Black, 2);
         private Font nodeFont = new Font("Arial", 7, FontStyle.Bold);
-        
+
 
         public BTree(int degree)
         {
@@ -229,7 +230,8 @@ namespace Proyecto
 
             // Restaurar el color normal después de un breve momento
             System.Threading.Timer timer = null;
-            timer = new System.Threading.Timer((obj) => {
+            timer = new System.Threading.Timer((obj) =>
+            {
                 nodeBrush = Brushes.LightGreen;
                 timer.Dispose();
             }, null, 500, System.Threading.Timeout.Infinite);
@@ -256,6 +258,9 @@ namespace Proyecto
 
             return scale;
         }
+
+
+
 
         private int CountKeys(BTreeNode node)
         {
