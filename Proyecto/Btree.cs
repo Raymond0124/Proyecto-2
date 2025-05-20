@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 
 
@@ -259,6 +260,61 @@ namespace Proyecto
             return scale;
         }
 
+        public int CountNodes()
+        {
+            return CountNodes(Root);
+        }
+
+        private int CountNodes(BTreeNode node)
+        {
+            if (node == null) return 0;
+            int count = node.Keys.Count();
+            foreach (var child in node.Children)
+                count += CountNodes(child);
+            return count;
+        }
+
+        public List<int> InOrderTraversal()
+        {
+            List<int> result = new List<int>();
+            InOrderTraversal(Root, result);
+            return result;
+        }
+
+        private void InOrderTraversal(BTreeNode node, List<int> result)
+        {
+            if (node == null) return;
+            for (int i = 0; i < node.Keys.Count(); i++)
+            {
+                if (i < node.Children.Count())
+                    InOrderTraversal(node.Children[i], result);
+                result.Add(node.Keys[i]);
+            }
+            if (node.Children.Count() > node.Keys.Count())
+                InOrderTraversal(node.Children[^1], result);
+        }
+        public List<int> GetAllValues()
+        {
+            var values = new List<int>();
+            CollectValues(Root, values);
+            return values;
+        }
+
+        private void CollectValues(BTreeNode node, List<int> values)
+        {
+            if (node == null) return;
+
+            for (int i = 0; i < node.Keys.Count(); i++)
+            {
+                if (!node.IsLeaf)
+                    CollectValues(node.Children[i], values);
+
+                values.Add(node.Keys[i]);
+            }
+
+            if (!node.IsLeaf)
+                CollectValues(node.Children[node.Keys.Count()], values);
+        }
 
 
 
@@ -276,6 +332,7 @@ namespace Proyecto
 
             return count;
         }
+        
 
 
         public void Draw(Graphics g, int x, int y)

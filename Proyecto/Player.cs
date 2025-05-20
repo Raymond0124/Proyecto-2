@@ -20,6 +20,27 @@ namespace Proyecto
         private bool onGround = false;
         private bool jumping = false;
 
+        public bool UsingBTree = true;
+        
+        private int keyLimit = 20; // Límite de claves para cambiar de BTree a BST
+
+        public bool IsUsingBST = false;
+        public const int MAX_BTREE_NODES = 15;
+
+        public BSTree BSTree { get; set; }
+
+       
+
+        private void ConvertToBST()
+        {
+            BSTree = new BSTree();
+            foreach (var v in Tree.InOrderTraversal())  // Debes implementar esto en BTree
+            {
+                BSTree.Insert(v);
+            }
+            Tree = null;
+            IsUsingBST = true;
+        }
 
 
         public BTree Tree; // nuevo
@@ -35,6 +56,7 @@ namespace Proyecto
             this.right = right;
             this.jump = jump;
             Tree = new BTree(3); // Grado 3 para empezar
+            BSTree = null;
         }
 
         public Rectangle Bounds => new Rectangle(X, Y, Width, Height);
@@ -115,6 +137,52 @@ namespace Proyecto
 
             if (key == left || key == right) SpeedX = 0;
         }
+        public void InsertKey(int value)
+        {
+            if (!IsUsingBST)
+            {
+                Tree.Insert(value);
+                if (CountTotalKeys(Tree.Root) >= keyLimit)
+                {
+                    var allKeys = new List<int>();
+                    CollectKeys(Tree.Root, allKeys);
+
+                    BSTree = new BSTree();
+                    foreach (var k in allKeys)
+                        BSTree.Insert(k);
+
+                    Tree = null;
+                    IsUsingBST = true;
+                }
+            }
+            else
+            {
+                BSTree.Insert(value);
+            }
+        }
+
+
+        private int CountTotalKeys(BTreeNode node)
+        {
+            if (node == null) return 0;
+            int count = node.KeyCount;
+            for (int i = 0; i <= node.KeyCount; i++)
+            {
+                count += CountTotalKeys(node.Children[i]);
+            }
+            return count;
+        }
+
+        private void CollectKeys(BTreeNode node, List<int> keys)
+        {
+            if (node == null) return;
+            for (int i = 0; i < node.KeyCount; i++)
+            {
+                if (!node.IsLeaf) CollectKeys(node.Children[i], keys);
+                keys.Add(node.Keys[i]);
+            }
+            if (!node.IsLeaf) CollectKeys(node.Children[node.KeyCount], keys);
+        }
 
         public void Draw(Graphics g, Pen pen)
         {
@@ -135,5 +203,22 @@ namespace Proyecto
             g.DrawLine(pen, centerX, Y + 40, X + Width, Y + 60);
         }
 
-    }    
+        public int CountNodes()
+        {
+            return Tree != null ? CountNodes(Tree.Root) : 0;
+        }
+
+        private int CountNodes(BTreeNode node)
+        {
+            if (node == null) return 0;
+            int count = 1; // contar el nodo actual
+            foreach (var child in node.Children)
+                count += CountNodes(child);
+            return count;
+        }
+
+    }
+
+    
+
 }

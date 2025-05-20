@@ -1,6 +1,7 @@
-using System;
+Ôªøusing System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Numerics;
 using System.Windows.Forms;
 using Timer = System.Windows.Forms.Timer;
 
@@ -17,13 +18,14 @@ namespace Proyecto
 
 
 
+        private const int MaxBTreeNodes = 15; // l√≠mite de nodos del B-tree
 
 
 
-        // Nueva variable para animar la construcciÛn del ·rbol
+        // Nueva variable para animar la construcci√≥n del √°rbol
         private bool treeUpdated = false;
 
-        // Panel para mostrar ·rboles B
+        // Panel para mostrar √°rboles B
         private Panel treePanel;
 
         // Colores para los jugadores
@@ -39,7 +41,7 @@ namespace Proyecto
             InitializeComponent();
             this.DoubleBuffered = true;
 
-            // Configurar el panel de ·rboles
+            // Configurar el panel de √°rboles
             ConfigureTreePanel();
 
             // Inicializar jugadores
@@ -89,7 +91,7 @@ namespace Proyecto
 
         private void ConfigureTreePanel()
         {
-            // Crear un panel para mostrar los ·rboles B
+            // Crear un panel para mostrar los √°rboles B
             treePanel = new Panel
             {
                 Dock = DockStyle.Right,
@@ -106,30 +108,38 @@ namespace Proyecto
         {
             Graphics g = e.Graphics;
 
-            // Dibujar tÌtulo del panel
-            g.DrawString("¡rboles B en Tiempo Real", new Font("Arial", 12, FontStyle.Bold), Brushes.Black, 10, 10);
+            // Dibujar t√≠tulo del panel
+            g.DrawString("√Årboles B en Tiempo Real", new Font("Arial", 12, FontStyle.Bold), Brushes.Black, 10, 10);
 
-            // Dibujar lÌnea separadora
+            // Dibujar l√≠nea separadora
             g.DrawLine(Pens.Gray, 0, 40, treePanel.Width, 40);
 
-            // ¡rea para dibujar ·rboles B de ejemplo
+            // √Årea para dibujar √°rboles B de ejemplo
 
 
-            // Dibujar ·rboles de cada jugador
+            // Dibujar √°rboles de cada jugador
             int y = 250;
             for (int i = 0; i < players.Count; i++)
             {
-                // SÛlo mostrar si el jugador tiene tokens recolectados
+                // S√≥lo mostrar si el jugador tiene tokens recolectados
                 if (players[i].Score > 0)
                 {
                     string playerName = $"P{i + 1}: {players[i].Score} pts";
                     g.DrawString(playerName, new Font("Arial", 10, FontStyle.Bold),
                                 new SolidBrush(playerColors[i % playerColors.Length]), 10, y - 200);
 
-                    // Dibujar el ·rbol B del jugador
-                    DrawCompactBTree(g, players[i].Tree, 20, y, playerColors[i % playerColors.Length]);
+                    // Dibujar el √°rbol B del jugador
+                    if (players[i].IsUsingBST)
+                    {
+                        DrawCompactTree(g, players[i], 20, y, playerColors[i % playerColors.Length]);
+                    }
+                    else
+                    {
+                        DrawCompactTree(g, players[i], 20, y, playerColors[i % playerColors.Length]);
+                    }
 
-                    y += 100; // Espacio vertical entre ·rboles de jugadores
+
+                    y += 135; // Espacio vertical entre √°rboles de jugadores
                 }
             }
         }
@@ -154,30 +164,39 @@ namespace Proyecto
             }
         }
 
-        private void DrawCompactBTree(Graphics g, BTree tree, int x, int y, Color color)
+        private void DrawCompactTree(Graphics g, Player player, int x, int y, Color color)
+
         {
-            if (tree.Root != null)
+            if (!player.IsUsingBST && player.Tree?.Root != null)
             {
                 // Usar colores personalizados por jugador
                 Brush nodeBrush = new SolidBrush(Color.FromArgb(180, color));
                 Pen nodePen = new Pen(Color.FromArgb(240, color), 2);
 
-                // Dibujar el ·rbol en un tamaÒo m·s compacto para el panel lateral
-                tree.Draw(g, x + 180, y - 180);
+                // Dibujar el √°rbol en un tama√±o m√°s compacto para el panel lateral
+                player.Tree.Draw(g, x + 180, y - 180);
 
-                // Indicar actualizaciÛn visual si el ·rbol cambiÛ
+                // Indicar actualizaci√≥n visual si el √°rbol cambi√≥
                 if (treeUpdated)
                 {
-                    g.DrawString("°Actualizado!", new Font("Arial", 8, FontStyle.Bold),
+                    g.DrawString("¬°Actualizado!", new Font("Arial", 8, FontStyle.Bold),
                                 Brushes.Green, x + 150, y - 200);
                     treeUpdated = false;
                 }
             }
+            else if (player.IsUsingBST && player.BSTree?.Root != null)
+            {
+                
+                player.BSTree.Draw(g, x + 180, y - 180);
+            }
             else
             {
-                g.DrawString("¡rbol vacÌo", new Font("Arial", 8), Brushes.Gray, x, y);
+                g.DrawString("√Årbol vac√≠o", new Font("Arial", 8), Brushes.Gray, x, y);
             }
         }
+
+        
+
 
         private void GeneratePlatforms()
         {
@@ -192,7 +211,7 @@ namespace Proyecto
 
             int maxWidth = this.ClientSize.Width - treePanel.Width;
             int maxHeight = this.ClientSize.Height;
-            // Define zonas de apariciÛn para las plataformas aleatorias (en porcentaje del ·rea jugable)
+            // Define zonas de aparici√≥n para las plataformas aleatorias (en porcentaje del √°rea jugable)
             var zones = new (float minX, float maxX, float minY, float maxY)[]
             {
         (0.0f, 0.3f, 0.72f, 0.75f),
@@ -238,7 +257,7 @@ namespace Proyecto
                     RespawnPlayer(player);
             }
 
-            // EmpujÛn entre jugadores si se tocan
+            // Empuj√≥n entre jugadores si se tocan
             for (int i = 0; i < players.Count; i++)
             {
                 for (int j = i + 1; j < players.Count; j++)
@@ -276,16 +295,37 @@ namespace Proyecto
                         token.Collected = true;
                         player.Score++;
 
-                        // Insertar el token en el ·rbol del jugador
-                        player.Tree.Insert(token.Value);
+                        if (!player.IsUsingBST)
+                        {
+                            player.InsertKey(token.Value);
 
-                        // Marcar que se actualizÛ un ·rbol
-                        treeUpdated = true;
-                        anyTokenCollected = true;
 
-                        // Actualizar inmediatamente el panel de ·rboles
+                            if (player.Tree.CountNodes() > MaxBTreeNodes)
+                            {
+                                // Convertir a BST
+                                player.Tree = null;
+                                player.BSTree = new BSTree(); // BST limpio, vac√≠o
+                                player.IsUsingBST = true;
+
+                                treeUpdated = true;
+                                treePanel.Invalidate();
+
+
+
+
+
+                                //List<int> allValues = player.Tree.GetAllValues(); // necesitas implementar este m√©todo
+
+
+                                treeUpdated = true;
+                            }
+                        }
+                        else
+                        {
+                            player.BSTree.Insert(token.Value);
+                        }
+
                         treePanel.Invalidate();
-
                         break;
                     }
                 }
@@ -295,7 +335,7 @@ namespace Proyecto
             // Limpiar tokens colectados
             tokens.RemoveAll(t => t.Collected);
 
-            // Si se recogiÛ alg˙n token, generar uno nuevo despuÈs de un pequeÒo retraso
+            // Si se recogi√≥ alg√∫n token, generar uno nuevo despu√©s de un peque√±o retraso
             if (anyTokenCollected && tokens.Count < 5)
             {
                 Timer newTokenTimer = new Timer { Interval = 1000 };
@@ -354,7 +394,7 @@ namespace Proyecto
             foreach (var token in tokens)
                 token.Draw(g);
 
-            // Dibujar jugadores con colores especÌficos
+            // Dibujar jugadores con colores espec√≠ficos
             for (int i = 0; i < players.Count; i++)
             {
                 Pen playerPen = new Pen(playerColors[i % playerColors.Length], 2);
@@ -365,7 +405,7 @@ namespace Proyecto
         private void InitializeComponent()
         {
             this.SuspendLayout();
-            this.ClientSize = new Size(1150, 600);  // Ventana m·s ancha para el panel lateral
+            this.ClientSize = new Size(1150, 600);  // Ventana m√°s ancha para el panel lateral
             this.Name = "MainForm";
             this.Text = "Super Smash Trees";
             this.ResumeLayout(false);
