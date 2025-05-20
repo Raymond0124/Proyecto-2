@@ -16,11 +16,7 @@ namespace Proyecto
         private Random rnd = new Random();
         private int gameTime = 60;
 
-
-
         private const int MaxBTreeNodes = 15; // límite de nodos del B-tree
-
-
 
         // Nueva variable para animar la construcción del árbol
         private bool treeUpdated = false;
@@ -36,6 +32,9 @@ namespace Proyecto
             Color.DarkOrange
         };
 
+        // Nuevo: Registro de la última colisión para saber quién empujó a quién
+        private Dictionary<Player, Player> lastPlayerContact = new Dictionary<Player, Player>();
+
         public MainForm()
         {
             InitializeComponent();
@@ -49,6 +48,12 @@ namespace Proyecto
             players.Add(new Player(700, 300, ControlType.Keyboard, 0, Keys.Left, Keys.Right, Keys.Up)); // Jugador 2 (Flechas)
             players.Add(new Player(400, 100, ControlType.Gamepad, 0)); // Jugador 3 (control 1)
             players.Add(new Player(500, 100, ControlType.Gamepad, 1)); // Jugador 4 (control 2)
+
+            // Inicializar el registro de contactos por jugador
+            foreach (var player in players)
+            {
+                lastPlayerContact[player] = null;
+            }
 
             // Inicializa los BTree de cada jugador
             foreach (var player in players)
@@ -116,7 +121,6 @@ namespace Proyecto
 
             // Área para dibujar árboles B de ejemplo
 
-
             // Dibujar árboles de cada jugador
             int y = 250;
             for (int i = 0; i < players.Count; i++)
@@ -138,14 +142,10 @@ namespace Proyecto
                         DrawCompactTree(g, players[i], 20, y, playerColors[i % playerColors.Length]);
                     }
 
-
                     y += 135; // Espacio vertical entre árboles de jugadores
                 }
             }
         }
-
-
-
 
         private void DrawExampleNode(Graphics g, int x, int y, string[] keys, Pen outline = null, Brush fill = null)
         {
@@ -165,7 +165,6 @@ namespace Proyecto
         }
 
         private void DrawCompactTree(Graphics g, Player player, int x, int y, Color color)
-
         {
             if (!player.IsUsingBST && player.Tree?.Root != null)
             {
@@ -186,7 +185,6 @@ namespace Proyecto
             }
             else if (player.IsUsingBST && player.BSTree?.Root != null)
             {
-                
                 player.BSTree.Draw(g, x + 180, y - 180);
             }
             else
@@ -194,9 +192,6 @@ namespace Proyecto
                 g.DrawString("Árbol vacío", new Font("Arial", 8), Brushes.Gray, x, y);
             }
         }
-
-        
-
 
         private void GeneratePlatforms()
         {
@@ -207,32 +202,81 @@ namespace Proyecto
             int mainPlatformX = (this.ClientSize.Width - treePanel.Width - mainPlatformWidth) / 2;
             platforms.Add(new Platform(mainPlatformX, this.ClientSize.Height - 50, mainPlatformWidth, 20));
 
-
-
             int maxWidth = this.ClientSize.Width - treePanel.Width;
             int maxHeight = this.ClientSize.Height;
-            // Define zonas de aparición para las plataformas aleatorias (en porcentaje del área jugable)
-            var zones = new (float minX, float maxX, float minY, float maxY)[]
-            {
-        (0.0f, 0.3f, 0.72f, 0.75f),
-        (0.4f, 0.6f, 0.75f, 0.75f),
-        (0.7f, 1f, 0.73f, 0.75f),
-        (0.1f, 0.3f, 0.45f, 0.45f),
-        (0.4f, 0.6f, 0.45f, 0.48f),
-        (0.7f, 0.9f, 0.45f, 0.47f),
-        (0.4f, 0.7f, 0.6f, 0.6f),
 
-            };
+            // Estimación de la altura máxima de salto del jugador
+            int maxJumpHeight = 150;
+            int minPlatformWidth = 120;
+            int maxPlatformWidth = 200;
 
-            // Generar las plataformas en sus respectivas zonas
-            foreach (var zone in zones)
+            // Número aleatorio de plataformas (entre 7 y 12)
+            int numPlatforms = rnd.Next(7, 13);
+
+            // Lista de puntos donde se pueden colocar plataformas (para asegurar accesibilidad)
+            List<Rectangle> validAreas = new List<Rectangle>();
+
+            // Inicialmente, el área válida es justo encima de la plataforma principal
+            validAreas.Add(new Rectangle(mainPlatformX - 100, mainPlatformX - maxJumpHeight, mainPlatformWidth + 200, maxJumpHeight));
+
+            // Generar plataformas de manera aleatoria pero accesible
+            for (int i = 0; i < numPlatforms; i++)
             {
-                int x = rnd.Next((int)(zone.minX * maxWidth), (int)(zone.maxX * maxWidth) - 150);
-                int y = rnd.Next((int)(zone.minY * maxHeight), (int)(zone.maxY * maxHeight));
-                platforms.Add(new Platform(x, y, 150, 20));
+                // Si no hay áreas válidas, romper el ciclo
+                if (validAreas.Count == 0)
+                    break;
+
+                // Elegir un área válida al azar
+                int areaIndex = rnd.Next(validAreas.Count);
+                Rectangle area = validAreas[areaIndex];
+
+                // Generar la posición y dimensiones aleatorias dentro del área válida
+                int width = rnd.Next(minPlatformWidth, maxPlatformWidth);
+                int x = rnd.Next(area.X, area.X + area.Width - width);
+                int y = rnd.Next(area.Y, area.Y + area.Height);
+
+                // Asegurarse de que la plataforma no sale de los límites
+                x = Math.Max(50, Math.Min(x, maxWidth - width - 50));
+                y = Math.Max(100, Math.Min(y, maxHeight - 150));
+
+                // Crear la plataforma
+                Platform platform = new Platform(x, y, width, 20);
+                platforms.Add(platform);
+
+                // Quitar el área usada
+                validAreas.RemoveAt(areaIndex);
+
+                // Añadir nuevas áreas válidas alrededor de la plataforma creada
+                validAreas.Add(new Rectangle(x - 100, y - maxJumpHeight, width + 200, maxJumpHeight)); // Arriba
+                validAreas.Add(new Rectangle(x - 150, y, 150, maxJumpHeight)); // Izquierda
+                validAreas.Add(new Rectangle(x + width, y, 150, maxJumpHeight)); // Derecha
             }
-        }
 
+            // Si tenemos menos de 7 plataformas, añadir algunas más para asegurar un juego interesante
+            while (platforms.Count < 8)
+            {
+                int width = rnd.Next(minPlatformWidth, maxPlatformWidth);
+                int x = rnd.Next(50, maxWidth - width - 50);
+                int y = rnd.Next(100, maxHeight - 200);
+
+                // Verificar si hay alguna plataforma cerca para asegurar accesibilidad
+                bool isAccessible = false;
+                foreach (var p in platforms)
+                {
+                    if (Math.Abs(p.Y - y) < maxJumpHeight && Math.Abs(p.X - x) < 200)
+                    {
+                        isAccessible = true;
+                        break;
+                    }
+                }
+
+                if (isAccessible)
+                {
+                    platforms.Add(new Platform(x, y, width, 20));
+                }
+            }
+
+        }
 
         private void GenerateTokens()
         {
@@ -254,7 +298,46 @@ namespace Proyecto
             foreach (var player in players)
             {
                 if (player.Y > this.ClientSize.Height)
+                {
+                    // Nuevo: Si un jugador cae, verificar si alguien lo empujó
+                    Player pusher = lastPlayerContact[player];
+                    if (pusher != null)
+                    {
+                        // Otorgar 2 puntos al empujador (puedes ajustar el valor)
+                        pusher.Score += 2;
+
+                        // Actualizar el árbol del empujador con un valor aleatorio entre 1-100
+                        int pushValue = rnd.Next(1, 100);
+                        if (!pusher.IsUsingBST)
+                        {
+                            pusher.InsertKey(pushValue);
+
+                            if (pusher.Tree.CountNodes() > MaxBTreeNodes)
+                            {
+                                // Convertir a BST
+                                pusher.Tree = null;
+                                pusher.BSTree = new BSTree(); // BST limpio, vacío
+                                pusher.IsUsingBST = true;
+                                treeUpdated = true;
+                            }
+                        }
+                        else
+                        {
+                            pusher.BSTree.Insert(pushValue);
+                        }
+
+                        treePanel.Invalidate();
+
+                        // Mostrar mensaje de KO en pantalla (puedes implementar esto)
+                        // ShowKOMessage(pusher, player);
+                    }
+
+                    // Restablecer el último contacto
+                    lastPlayerContact[player] = null;
+
+                    // Respawn del jugador caído
                     RespawnPlayer(player);
+                }
             }
 
             // Empujón entre jugadores si se tocan
@@ -269,6 +352,13 @@ namespace Proyecto
                         Rectangle inter = Rectangle.Intersect(a.Bounds, b.Bounds);
                         if (inter.Width > 0)
                         {
+                            // Registrar el contacto entre jugadores
+                            if (a.SpeedX != 0)
+                                lastPlayerContact[b] = a;
+
+                            if (b.SpeedX != 0)
+                                lastPlayerContact[a] = b;
+
                             if (a.X < b.X)
                             {
                                 a.X -= inter.Width / 2;
@@ -294,11 +384,11 @@ namespace Proyecto
                     {
                         token.Collected = true;
                         player.Score++;
+                        anyTokenCollected = true;
 
                         if (!player.IsUsingBST)
                         {
                             player.InsertKey(token.Value);
-
 
                             if (player.Tree.CountNodes() > MaxBTreeNodes)
                             {
@@ -310,12 +400,7 @@ namespace Proyecto
                                 treeUpdated = true;
                                 treePanel.Invalidate();
 
-
-
-
-
                                 //List<int> allValues = player.Tree.GetAllValues(); // necesitas implementar este método
-
 
                                 treeUpdated = true;
                             }
@@ -330,7 +415,6 @@ namespace Proyecto
                     }
                 }
             }
-
 
             // Limpiar tokens colectados
             tokens.RemoveAll(t => t.Collected);
