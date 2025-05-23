@@ -41,9 +41,9 @@ namespace Proyecto
             }
         }
 
-        
 
-            
+
+
 
 
 
@@ -157,10 +157,54 @@ namespace Proyecto
         }
 
 
+        public List<int> GetAllValues()
+        {
+            var values = new List<int>();
+            InOrder(Root, values);
+            return values;
+        }
+
+        public void InOrder(BSTNode node, List<int> values)
+        {
+            if (node == null) return;
+            InOrder(node.Left, values);
+            values.Add(node.Value);
+            InOrder(node.Right, values);
+        }
 
 
+        public int CountNodes()
+        {
+            return CountNodes(Root);
+        }
+
+        private int CountNodes(BSTNode node)
+        {
+            if (node == null) return 0;
+            return 1 + CountNodes(node.Left) + CountNodes(node.Right);
+        }
 
 
+        public List<int> InOrderTraversal()
+        {
+            var list = new List<int>();
+            InOrder(Root, list);
+            return list;
+        }
+
+        private void InOrderRecursive(BSTNode node, List<int> list)
+{
+    if (node == null) return;
+    InOrderRecursive(node.Left, list);
+    list.Add(node.Value);
+    InOrderRecursive(node.Right, list);
+}
+
+        private int Count(BSTNode node)
+        {
+            if (node == null) return 0;
+            return 1 + Count(node.Left) + Count(node.Right);
+        }
 
 
         private float CalculateScale()

@@ -26,10 +26,13 @@ namespace Proyecto
 
         public bool IsUsingBST = false;
         public const int MAX_BTREE_NODES = 15;
+        private const int MAX_BST_NODES = 20;
 
         public BSTree BSTree { get; set; }
 
-       
+        public AVLTree AVLTree { get; set; }
+        public bool IsUsingAVL { get; set; } = false;
+
 
         private void ConvertToBST()
         {
@@ -139,27 +142,48 @@ namespace Proyecto
         }
         public void InsertKey(int value)
         {
-            if (!IsUsingBST)
+            if (IsUsingAVL)
             {
-                Tree.Insert(value);
-                if (CountTotalKeys(Tree.Root) >= keyLimit)
-                {
-                    var allKeys = new List<int>();
-                    CollectKeys(Tree.Root, allKeys);
-
-                    BSTree = new BSTree();
-                    foreach (var k in allKeys)
-                        BSTree.Insert(k);
-
-                    Tree = null;
-                    IsUsingBST = true;
-                }
+                AVLTree.Insert(value);
+                return;
             }
-            else
+
+            if (IsUsingBST)
             {
                 BSTree.Insert(value);
+
+                // Verificar si ya debe convertirse a AVL
+                if (BSTree.CountNodes() >= MAX_BST_NODES)
+                {
+                    var allValues = BSTree.GetAllValues(); // Debes implementar este método en BSTree.cs
+                    AVLTree = new AVLTree();
+                    foreach (var v in allValues)
+                        AVLTree.Insert(v);
+
+                    BSTree = null;
+                    IsUsingAVL = true;
+                    IsUsingBST = false;
+                }
+
+                return;
+            }
+
+            // Caso inicial: usando BTree
+            Tree.Insert(value);
+            if (CountTotalKeys(Tree.Root) >= keyLimit)
+            {
+                var allKeys = new List<int>();
+                CollectKeys(Tree.Root, allKeys);
+
+                BSTree = new BSTree();
+                foreach (var k in allKeys)
+                    BSTree.Insert(k);
+
+                Tree = null;
+                IsUsingBST = true;
             }
         }
+
 
 
         private int CountTotalKeys(BTreeNode node)

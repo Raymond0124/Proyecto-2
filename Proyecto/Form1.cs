@@ -18,6 +18,8 @@ namespace Proyecto
 
         private const int MaxBTreeNodes = 15; // límite de nodos del B-tree
 
+        private const int MaxBSTNodes = 5;
+
         // Nueva variable para animar la construcción del árbol
         private bool treeUpdated = false;
 
@@ -82,6 +84,14 @@ namespace Proyecto
                     $"P2: {players[1].Score} puntos\n" +
                     $"P3: {players[2].Score} puntos\n" +
                     $"P4: {players[3].Score} puntos");
+
+                    var winner = players.OrderByDescending(p => p.Score).First();
+                    int maxScore = winner.Score;
+                    if (players.Count(p => p.Score == maxScore) > 1)
+                        MessageBox.Show("¡Empate!");
+                    else
+                        MessageBox.Show($"¡Ganador: P{players.IndexOf(winner) + 1} con {maxScore} puntos!");
+
                 }
             };
             countdown.Start();
@@ -166,16 +176,20 @@ namespace Proyecto
 
         private void DrawCompactTree(Graphics g, Player player, int x, int y, Color color)
         {
-            if (!player.IsUsingBST && player.Tree?.Root != null)
+            if (player.IsUsingAVL && player.AVLTree != null)
             {
-                // Usar colores personalizados por jugador
+                player.AVLTree.Draw(g, x + 180, y - 180); // Este método dibuja el árbol con nodos modernos
+            }
+            else if (player.IsUsingBST && player.BSTree?.Root != null)
+            {
+                player.BSTree.Draw(g, x + 180, y - 180);
+            }
+            else if (!player.IsUsingBST && player.Tree?.Root != null)
+            {
                 Brush nodeBrush = new SolidBrush(Color.FromArgb(180, color));
                 Pen nodePen = new Pen(Color.FromArgb(240, color), 2);
-
-                // Dibujar el árbol en un tamaño más compacto para el panel lateral
                 player.Tree.Draw(g, x + 180, y - 180);
 
-                // Indicar actualización visual si el árbol cambió
                 if (treeUpdated)
                 {
                     g.DrawString("¡Actualizado!", new Font("Arial", 8, FontStyle.Bold),
@@ -183,14 +197,12 @@ namespace Proyecto
                     treeUpdated = false;
                 }
             }
-            else if (player.IsUsingBST && player.BSTree?.Root != null)
-            {
-                player.BSTree.Draw(g, x + 180, y - 180);
-            }
             else
             {
                 g.DrawString("Árbol vacío", new Font("Arial", 8), Brushes.Gray, x, y);
             }
+
+
         }
 
         private void GeneratePlatforms()
@@ -236,6 +248,32 @@ namespace Proyecto
                 tokens.Add(new Token(x, y, value));
             }
         }
+        private void ShowKOMessage(Player winner, Player loser)
+        {
+            Label label = new Label
+            {
+                Text = $"¡P{players.IndexOf(winner) + 1} KO a P{players.IndexOf(loser) + 1}!",
+                ForeColor = Color.Red,
+                BackColor = Color.Transparent,
+                Font = new Font("Arial", 14, FontStyle.Bold),
+                AutoSize = true,
+                Location = new Point(300, 100)
+            };
+            this.Controls.Add(label);
+
+            Timer removeLabelTimer = new Timer { Interval = 2000 };
+            removeLabelTimer.Tick += (s, e) =>
+            {
+                this.Controls.Remove(label);
+                removeLabelTimer.Stop();
+            };
+            removeLabelTimer.Start();
+        }
+
+        
+
+
+
 
         private void GameLoop(object sender, EventArgs e)
         {
@@ -271,8 +309,21 @@ namespace Proyecto
                         else
                         {
                             pusher.BSTree.Insert(pushValue);
+
+                            if (pusher.BSTree.CountNodes() > MaxBSTNodes && !pusher.IsUsingAVL)
+                            {
+                                // Convertir a AVL
+                                var bstValues = pusher.BSTree.InOrderTraversal(); // Necesitas este método
+                                pusher.AVLTree = new AVLTree();
+                                foreach (var v in bstValues)
+                                    pusher.AVLTree.Insert(v);
+
+                                pusher.BSTree = null;
+                                pusher.IsUsingAVL = true;
+                            }
+
                         }
-                        
+
                         treePanel.Invalidate();
                         
                         // Mostrar mensaje de KO en pantalla (puedes implementar esto)
@@ -339,22 +390,34 @@ namespace Proyecto
 
                             if (player.Tree.CountNodes() > MaxBTreeNodes)
                             {
-                                // Convertir a BST
                                 player.Tree = null;
-                                player.BSTree = new BSTree(); // BST limpio, vacío
+                                player.BSTree = new BSTree(); // BST vacío
                                 player.IsUsingBST = true;
-
                                 treeUpdated = true;
                                 treePanel.Invalidate();
+                            }
+                        }
+                        else if (!player.IsUsingAVL)
+                        {
+                            if (player.BSTree != null)
+                            {
+                                player.BSTree.Insert(token.Value);
 
-                                //List<int> allValues = player.Tree.GetAllValues(); // necesitas implementar este método
-
-                                treeUpdated = true;
+                                if (player.BSTree.CountNodes() > MaxBSTNodes)
+                                {
+                                    player.BSTree = null;
+                                    player.AVLTree = new AVLTree(); // AVL vacío
+                                    player.IsUsingAVL = true;
+                                    treeUpdated = true;
+                                    treePanel.Invalidate();
+                                }
                             }
                         }
                         else
                         {
-                            player.BSTree.Insert(token.Value);
+                            // Ya está en AVL
+                            if (player.AVLTree != null)
+                                player.AVLTree.Insert(token.Value);
                         }
 
                         treePanel.Invalidate();
