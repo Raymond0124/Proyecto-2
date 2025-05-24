@@ -24,6 +24,18 @@ namespace Proyecto
             KeyCount = 0;
         }
 
+        public int GetDepth()
+        {
+            int maxChildDepth = 0;
+            foreach (var child in Children)
+            {
+                if (child != null)
+                    maxChildDepth = Math.Max(maxChildDepth, child.GetDepth());
+            }
+            return 1 + maxChildDepth;
+        }
+
+
         // Método mejorado de visualización para dibujar el árbol B
         public void Traverse(Graphics g, Brush nodeBrush, Pen nodePen, int x, int y, int horizontalSpacing, int verticalSpacing, int depth, float scale)
 
@@ -350,6 +362,10 @@ namespace Proyecto
             {
                 g.DrawString("Árbol B vacío", new Font("Arial", 10), Brushes.Black, x, y);
             }
+        }
+        public int Depth()
+        {
+            return Root != null ? Root.GetDepth() : 0;
         }
 
     }

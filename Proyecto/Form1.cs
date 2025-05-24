@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Numerics;
 using System.Windows.Forms;
+using static Proyecto.Player;
 using Timer = System.Windows.Forms.Timer;
 
 namespace Proyecto
@@ -16,9 +17,16 @@ namespace Proyecto
         private Random rnd = new Random();
         private int gameTime = 60;
 
-        private const int MaxBTreeNodes = 15; // límite de nodos del B-tree
+        private const int MaxAVLNodes = 7;
 
-        private const int MaxBSTNodes = 5;
+
+        private const int MaxBTreeNodes = 7; // límite de nodos del B-tree
+
+        private const int MaxBSTNodes = 7;
+
+        // Dentro de la clase Form1 (pero fuera de los métodos)
+        private ChallengeManager challengeManager = new ChallengeManager();
+
 
         // Nueva variable para animar la construcción del árbol
         private bool treeUpdated = false;
@@ -141,6 +149,12 @@ namespace Proyecto
                     string playerName = $"P{i + 1}: {players[i].Score} pts";
                     g.DrawString(playerName, new Font("Arial", 10, FontStyle.Bold),
                                 new SolidBrush(playerColors[i % playerColors.Length]), 10, y - 200);
+                    if (players[i].CurrentChallenges != null && players[i].CurrentChallenges.Count > 0)
+                    {
+                        string currentChallenge = players[i].CurrentChallenges[0].Description;
+                        g.DrawString("Reto: " + currentChallenge, new Font("Arial", 8, FontStyle.Italic),
+                                     Brushes.Black, 10, y - 185);
+                    }
 
                     // Dibujar el árbol B del jugador
                     if (players[i].IsUsingBST)
@@ -270,9 +284,10 @@ namespace Proyecto
             removeLabelTimer.Start();
         }
 
-        
 
 
+
+       
 
 
         private void GameLoop(object sender, EventArgs e)
@@ -378,6 +393,16 @@ namespace Proyecto
             {
                 foreach (var player in players)
                 {
+                   
+
+
+
+
+                    if (player.CurrentChallenges == null || player.CurrentChallenges.Count == 0)
+                    {
+                        player.CurrentChallenges = challengeManager.GetChallengesFor("BTree");
+                    }
+
                     if (!token.Collected && token.Bounds.IntersectsWith(player.Bounds))
                     {
                         token.Collected = true;
@@ -390,12 +415,25 @@ namespace Proyecto
 
                             if (player.Tree.CountNodes() > MaxBTreeNodes)
                             {
-                                player.Tree = null;
-                                player.BSTree = new BSTree(); // BST vacío
-                                player.IsUsingBST = true;
-                                treeUpdated = true;
-                                treePanel.Invalidate();
+                                bool anyChallengeCompleted = player.CurrentChallenges.Any(c => c.Condition(player));
+
+                                if (anyChallengeCompleted)
+                                {
+                                    player.BSTree = new BSTree(); // Árbol vacío
+                                    player.Tree = null;
+                                    player.IsUsingBST = true;
+                                    treeUpdated = true;
+                                    treePanel.Invalidate();
+
+                                    // Nuevos retos para BST
+                                    player.CurrentChallenges = challengeManager.GetChallengesFor("BST");
+                                    
+
+
+
+                                }
                             }
+
                         }
                         else if (!player.IsUsingAVL)
                         {
@@ -403,22 +441,59 @@ namespace Proyecto
                             {
                                 player.BSTree.Insert(token.Value);
 
-                                if (player.BSTree.CountNodes() > MaxBSTNodes)
+                                if (player.BSTree.CountNodes() > MaxBSTNodes && !player.IsUsingAVL)
                                 {
-                                    player.BSTree = null;
-                                    player.AVLTree = new AVLTree(); // AVL vacío
-                                    player.IsUsingAVL = true;
-                                    treeUpdated = true;
-                                    treePanel.Invalidate();
+                                    bool anyChallengeCompleted = player.CurrentChallenges.Any(c => c.Condition(player));
+
+                                    if (anyChallengeCompleted)
+                                    {
+                                        player.AVLTree = new AVLTree(); // Árbol vacío
+                                        player.BSTree = null;
+                                        player.IsUsingAVL = true;
+                                        treeUpdated = true;
+                                        treePanel.Invalidate();
+
+                                        // Nuevos retos para AVL
+                                        player.CurrentChallenges = challengeManager.GetChallengesFor("AVL");
+                                        
+
+
+                                    }
                                 }
+
                             }
                         }
                         else
                         {
                             // Ya está en AVL
                             if (player.AVLTree != null)
+                            {
                                 player.AVLTree.Insert(token.Value);
+
+                                if (player.AVLTree.CountNodes() > MaxAVLNodes)
+                                {
+                                    bool anyChallengeCompleted = player.CurrentChallenges.Any(c => c.Condition(player));
+
+                                    if (anyChallengeCompleted)
+                                    {
+                                        // Comenzar un nuevo ciclo: pasar de AVL a nuevo BTree vacío
+                                        player.Tree = new BTree(3); // Puedes ajustar el grado si es variable
+                                        player.AVLTree = null;
+                                        player.IsUsingBST = false;
+                                        player.IsUsingAVL = false;
+                                        treeUpdated = true;
+                                        treePanel.Invalidate();
+
+                                        // Nuevos retos para el nuevo ciclo de BTree
+                                        player.CurrentChallenges = challengeManager.GetChallengesFor("BTree");
+                                        
+
+
+                                    }
+                                }
+                            }
                         }
+
 
                         treePanel.Invalidate();
                         break;

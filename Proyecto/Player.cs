@@ -29,10 +29,21 @@ namespace Proyecto
         private const int MAX_BST_NODES = 20;
 
         public BSTree BSTree { get; set; }
+        public int TotalInsertedKeys { get; set; }
+        public int AVLRotations { get; set; }
+        public List<TreeChallenge> CompletedChallenges { get; set; } = new();
 
+
+        public string CurrentTreeType { get; set; } // "BTree", "BST", "AVL"
+
+        public TreeChallenge ActiveChallenge { get; set; }
         public AVLTree AVLTree { get; set; }
         public bool IsUsingAVL { get; set; } = false;
 
+        public List<TreeChallenge> CurrentChallenges { get; set; } = new List<TreeChallenge>();
+
+        private ChallengeManager challengeManager = new ChallengeManager();
+        
 
         private void ConvertToBST()
         {
@@ -96,6 +107,55 @@ namespace Proyecto
                     }
                 }
             }
+        }
+
+        public void SetNextActiveChallenge()
+        {
+            var remaining = CurrentChallenges.Except(CompletedChallenges).ToList();
+            if (remaining.Count > 0)
+                ActiveChallenge = remaining[new Random().Next(remaining.Count)];
+            else
+                ActiveChallenge = null;
+        }
+        public void DrawChallenges(Graphics g)
+        {
+            if (ActiveChallenge == null) return;
+
+            int startX = X - 10;
+            int startY = Y - 40;
+
+            using (Font font = new Font("Arial", 8))
+            using (Brush brush = Brushes.White)
+            {
+                string text = ActiveChallenge.Description;
+                bool completed = ActiveChallenge.Condition(this);
+                Brush textBrush = completed ? Brushes.LightGreen : brush;
+                g.DrawString(text, font, textBrush, startX, startY);
+            }
+        }
+        
+
+        public void StartTree(string treeType)
+        {
+            CurrentTreeType = treeType;
+            TotalInsertedKeys = 0;
+            AVLRotations = 0;
+
+            CurrentChallenges = challengeManager.GetChallengesFor(treeType);
+            CompletedChallenges = new List<TreeChallenge>();
+            SetNextActiveChallenge();
+
+        }
+
+        public bool HasCompletedActiveChallenge()
+        {
+            return CurrentChallenges != null && CurrentChallenges.All(ch => ch.Condition(this));
+        }
+
+        private TreeChallenge GetRandomChallenge(List<TreeChallenge> challenges)
+        {
+            Random rand = new();
+            return challenges[rand.Next(challenges.Count)];
         }
 
         private void HandleGamepadInput()
@@ -182,6 +242,37 @@ namespace Proyecto
                 Tree = null;
                 IsUsingBST = true;
             }
+
+            if (ActiveChallenge != null && ActiveChallenge.Condition(this))
+            {
+                CompleteActiveChallenge();
+
+
+                if (CompletedChallenges.Count >= 3)
+                {
+                    // avanzar al siguiente tipo de árbol
+                    if (CurrentTreeType == "BTree")
+                    {
+                        StartTree("BST");
+                        BSTree = new BSTree();
+                        IsUsingBST = true;
+                        UsingBTree = false;
+                    }
+                    else if (CurrentTreeType == "BST")
+                    {
+                        StartTree("AVL");
+                        AVLTree = new AVLTree();
+                        IsUsingAVL = true;
+                        IsUsingBST = false;
+                    }
+                    else if (CurrentTreeType == "AVL")
+                    {
+                        MessageBox.Show("¡Felicidades! Completaste todos los retos.");
+                    }
+                }
+            }
+
+
         }
 
 
@@ -230,6 +321,29 @@ namespace Proyecto
         public int CountNodes()
         {
             return Tree != null ? CountNodes(Tree.Root) : 0;
+        }
+        public void CompleteActiveChallenge()
+        {
+            if (ActiveChallenge != null)
+            {
+                CompletedChallenges.Add(ActiveChallenge);
+
+                // Reiniciar el árbol según el tipo actual
+                switch (CurrentTreeType)
+                {
+                    case "BTree":
+                        Tree = new BTree(3);
+                        break;
+                    case "BST":
+                        BSTree = new BSTree();
+                        break;
+                    case "AVL":
+                        AVLTree = new AVLTree();
+                        break;
+                }
+
+                SetNextActiveChallenge();
+            }
         }
 
         private int CountNodes(BTreeNode node)

@@ -135,8 +135,8 @@ namespace Proyecto
         {
             if (node == null) return;
 
-            int nodeHeight = (int)(40 * scale);
-            int nodeWidth = (int)(40 * scale);
+            int nodeHeight = (int)(30 * scale);
+            int nodeWidth = (int)(30 * scale);
             int currentX = x - nodeWidth / 2;
 
             int lineOffset = 4;
@@ -191,8 +191,11 @@ namespace Proyecto
             if (d > 4) return 0.65f;
             return 0.8f;
         }
-
-        private int Depth(AVLNode n) =>
+        public int Depth()
+        {
+            return Depth(Root);
+        }
+        public int Depth(AVLNode n) =>
             n == null ? 0 : 1 + Math.Max(Depth(n.Left), Depth(n.Right));
 
     }
