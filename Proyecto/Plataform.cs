@@ -1,6 +1,6 @@
 ﻿using System.Drawing;
 
-namespace Proyecto
+namespace Proyecto.Entities
 {
     public class Platform
     {
@@ -8,14 +8,17 @@ namespace Proyecto
 
         public Platform(int x, int y, int width, int height)
         {
-            X = x; Y = y; Width = width; Height = height;
+            X = x;
+            Y = y;
+            Width = width;
+            Height = height;
         }
 
         public Rectangle Bounds => new Rectangle(X, Y, Width, Height);
 
         public void Draw(Graphics g)
         {
-            g.FillRectangle(Brushes.SaddleBrown, Bounds);
+            g.FillRectangle(Brushes.Brown, Bounds);
         }
     }
 }

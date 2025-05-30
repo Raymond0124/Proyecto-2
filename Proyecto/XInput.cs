@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
-namespace Proyecto
+namespace Proyecto.Inputs
 {
     public static class XInput
     {
@@ -30,7 +30,6 @@ namespace Proyecto
         public const int ERROR_SUCCESS = 0;
         public const int XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE = 7849;
         public const int XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE = 8689;
-
         public const int XINPUT_GAMEPAD_DPAD_UP = 0x0001;
         public const int XINPUT_GAMEPAD_DPAD_DOWN = 0x0002;
         public const int XINPUT_GAMEPAD_DPAD_LEFT = 0x0004;

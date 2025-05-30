@@ -1,9 +1,9 @@
-﻿using System;
+﻿using Proyecto.Entities;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Numerics;
+using System.Linq;
 using System.Windows.Forms;
-using static Proyecto.Player;
 using Timer = System.Windows.Forms.Timer;
 
 namespace Proyecto
@@ -18,23 +18,13 @@ namespace Proyecto
         private int gameTime = 60;
 
         private const int MaxAVLNodes = 7;
-
-
-        private const int MaxBTreeNodes = 7; // límite de nodos del B-tree
-
+        private const int MaxBTreeNodes = 7;
         private const int MaxBSTNodes = 7;
 
-        // Dentro de la clase Form1 (pero fuera de los métodos)
         private ChallengeManager challengeManager = new ChallengeManager();
-
-
-        // Nueva variable para animar la construcción del árbol
         private bool treeUpdated = false;
-
-        // Panel para mostrar árboles B
         private Panel treePanel;
 
-        // Colores para los jugadores
         private Color[] playerColors = {
             Color.RoyalBlue,
             Color.Crimson,
@@ -42,7 +32,6 @@ namespace Proyecto
             Color.DarkOrange
         };
 
-        // Nuevo: Registro de la última colisión para saber quién empujó a quién
         private Dictionary<Player, Player> lastPlayerContact = new Dictionary<Player, Player>();
 
         public MainForm()
@@ -50,25 +39,24 @@ namespace Proyecto
             InitializeComponent();
             this.DoubleBuffered = true;
 
-            // Configurar el panel de árboles
             ConfigureTreePanel();
 
-            // Inicializar jugadores
-            players.Add(new Player(100, 300, ControlType.Keyboard, 0, Keys.A, Keys.D, Keys.W));       // Jugador 1 (WASD)
-            players.Add(new Player(700, 300, ControlType.Keyboard, 0, Keys.Left, Keys.Right, Keys.Up)); // Jugador 2 (Flechas)
-            players.Add(new Player(400, 100, ControlType.Gamepad, 0)); // Jugador 3 (control 1)
-            players.Add(new Player(500, 100, ControlType.Gamepad, 1)); // Jugador 4 (control 2)
+            // Inicializar jugadores con teclas de poderes
+            players.Add(new Player(100, 300, ControlType.Keyboard, 0, Keys.A, Keys.D, Keys.W, Keys.Q));
+            players.Add(new Player(700, 300, ControlType.Keyboard, 0, Keys.Left, Keys.Right, Keys.Up, Keys.RShiftKey));
+            players.Add(new Player(400, 100, ControlType.Gamepad, 0));
+            players.Add(new Player(500, 100, ControlType.Gamepad, 1));
 
-            // Inicializar el registro de contactos por jugador
             foreach (var player in players)
             {
                 lastPlayerContact[player] = null;
+                // Dar poder inicial aleatorio a cada jugador
+                player.AddPower(new Power(PowerType.Shield));
             }
 
-            // Inicializa los BTree de cada jugador
             foreach (var player in players)
             {
-                player.Tree = new BTree(3); // Grado 3 para empezar
+                player.Tree = new BTree(3);
             }
 
             GeneratePlatforms();
@@ -78,7 +66,7 @@ namespace Proyecto
             gameTimer.Tick += GameLoop;
             gameTimer.Start();
 
-            Timer countdown = new Timer { Interval = 1000 };
+            Timer countdown = new Timer { Interval = 10000 };
             countdown.Tick += (s, e) =>
             {
                 gameTime--;
@@ -99,14 +87,29 @@ namespace Proyecto
                         MessageBox.Show("¡Empate!");
                     else
                         MessageBox.Show($"¡Ganador: P{players.IndexOf(winner) + 1} con {maxScore} puntos!");
-
                 }
             };
             countdown.Start();
 
-            Timer tokenTimer = new Timer { Interval = 5000 }; // cada 5 segundos
+            Timer tokenTimer = new Timer { Interval = 5000 };
             tokenTimer.Tick += (s, e) => GenerateTokens();
             tokenTimer.Start();
+
+            // Timer para dar poderes aleatorios
+            Timer powerTimer = new Timer { Interval = 10000 }; // Cada 10 segundos
+            powerTimer.Tick += (s, e) =>
+            {
+                foreach (var player in players)
+                {
+                    if (player.Powers.Count < 3) // Máximo 3 poderes por jugador
+                    {
+                        var powerManager = new PowerManager();
+                        var randomPower = powerManager.GetRandomPower();
+                        player.AddPower(randomPower);
+                    }
+                }
+            };
+            powerTimer.Start();
 
             this.KeyDown += OnKeyDown;
             this.KeyUp += OnKeyUp;
@@ -114,7 +117,6 @@ namespace Proyecto
 
         private void ConfigureTreePanel()
         {
-            // Crear un panel para mostrar los árboles B
             treePanel = new Panel
             {
                 Dock = DockStyle.Right,
@@ -131,24 +133,18 @@ namespace Proyecto
         {
             Graphics g = e.Graphics;
 
-            // Dibujar título del panel
             g.DrawString("Árboles B en Tiempo Real", new Font("Arial", 12, FontStyle.Bold), Brushes.Black, 10, 10);
-
-            // Dibujar línea separadora
             g.DrawLine(Pens.Gray, 0, 40, treePanel.Width, 40);
 
-            // Área para dibujar árboles B de ejemplo
-
-            // Dibujar árboles de cada jugador
             int y = 250;
             for (int i = 0; i < players.Count; i++)
             {
-                // Sólo mostrar si el jugador tiene tokens recolectados
                 if (players[i].Score > 0)
                 {
                     string playerName = $"P{i + 1}: {players[i].Score} pts";
                     g.DrawString(playerName, new Font("Arial", 10, FontStyle.Bold),
                                 new SolidBrush(playerColors[i % playerColors.Length]), 10, y - 200);
+
                     if (players[i].CurrentChallenges != null && players[i].CurrentChallenges.Count > 0)
                     {
                         string currentChallenge = players[i].CurrentChallenges[0].Description;
@@ -156,35 +152,9 @@ namespace Proyecto
                                      Brushes.Black, 10, y - 185);
                     }
 
-                    // Dibujar el árbol B del jugador
-                    if (players[i].IsUsingBST)
-                    {
-                        DrawCompactTree(g, players[i], 20, y, playerColors[i % playerColors.Length]);
-                    }
-                    else
-                    {
-                        DrawCompactTree(g, players[i], 20, y, playerColors[i % playerColors.Length]);
-                    }
-
-                    y += 135; // Espacio vertical entre árboles de jugadores
+                    DrawCompactTree(g, players[i], 20, y, playerColors[i % playerColors.Length]);
+                    y += 135;
                 }
-            }
-        }
-
-        private void DrawExampleNode(Graphics g, int x, int y, string[] keys, Pen outline = null, Brush fill = null)
-        {
-            if (outline == null) outline = Pens.Black;
-            if (fill == null) fill = Brushes.White;
-
-            int width = keys.Length * 15;
-            g.FillEllipse(fill, x - width / 2, y - 10, width, 20);
-            g.DrawEllipse(outline, x - width / 2, y - 10, width, 20);
-
-            // Dibujar las claves
-            for (int i = 0; i < keys.Length; i++)
-            {
-                int keyX = x - width / 2 + i * 15 + 7;
-                g.DrawString(keys[i], new Font("Arial", 8), Brushes.Black, keyX - 4, y - 7);
             }
         }
 
@@ -192,7 +162,7 @@ namespace Proyecto
         {
             if (player.IsUsingAVL && player.AVLTree != null)
             {
-                player.AVLTree.Draw(g, x + 180, y - 180); // Este método dibuja el árbol con nodos modernos
+                player.AVLTree.Draw(g, x + 180, y - 180);
             }
             else if (player.IsUsingBST && player.BSTree?.Root != null)
             {
@@ -215,22 +185,19 @@ namespace Proyecto
             {
                 g.DrawString("Árbol vacío", new Font("Arial", 8), Brushes.Gray, x, y);
             }
-
-
         }
 
         private void GeneratePlatforms()
         {
             platforms.Clear();
 
-            // Plataforma principal centrada
             int mainPlatformWidth = 500;
             int mainPlatformX = (this.ClientSize.Width - treePanel.Width - mainPlatformWidth) / 2;
             platforms.Add(new Platform(mainPlatformX, this.ClientSize.Height - 50, mainPlatformWidth, 20));
 
             int maxWidth = this.ClientSize.Width - treePanel.Width;
             int maxHeight = this.ClientSize.Height;
-            // Define zonas de aparición para las plataformas aleatorias (en porcentaje del área jugable)
+
             var zones = new (float minX, float maxX, float minY, float maxY)[]
             {
                 (0.0f, 0.3f, 0.72f, 0.75f),
@@ -242,7 +209,6 @@ namespace Proyecto
                 (0.4f, 0.7f, 0.6f, 0.6f),
             };
 
-            // Generar las plataformas en sus respectivas zonas
             foreach (var zone in zones)
             {
                 int x = rnd.Next((int)(zone.minX * maxWidth), (int)(zone.maxX * maxWidth) - 150);
@@ -254,7 +220,7 @@ namespace Proyecto
         private void GenerateTokens()
         {
             tokens.Clear();
-            for (int i = 0; i < 5; i++) // Aumentamos a 5 tokens
+            for (int i = 0; i < 5; i++)
             {
                 int x = rnd.Next(100, this.ClientSize.Width - treePanel.Width - 100);
                 int y = rnd.Next(100, this.ClientSize.Height - 100);
@@ -262,61 +228,31 @@ namespace Proyecto
                 tokens.Add(new Token(x, y, value));
             }
         }
-        private void ShowKOMessage(Player winner, Player loser)
-        {
-            Label label = new Label
-            {
-                Text = $"¡P{players.IndexOf(winner) + 1} KO a P{players.IndexOf(loser) + 1}!",
-                ForeColor = Color.Red,
-                BackColor = Color.Transparent,
-                Font = new Font("Arial", 14, FontStyle.Bold),
-                AutoSize = true,
-                Location = new Point(300, 100)
-            };
-            this.Controls.Add(label);
-
-            Timer removeLabelTimer = new Timer { Interval = 2000 };
-            removeLabelTimer.Tick += (s, e) =>
-            {
-                this.Controls.Remove(label);
-                removeLabelTimer.Stop();
-            };
-            removeLabelTimer.Start();
-        }
-
-
-
-
-       
-
 
         private void GameLoop(object sender, EventArgs e)
         {
+            // Actualizar jugadores pasando la lista completa para poderes
             foreach (var player in players)
-                player.Update(platforms);
+                player.Update(platforms, players);
 
             foreach (var player in players)
             {
                 if (player.Y > this.ClientSize.Height)
                 {
-                    // Nuevo: Si un jugador cae, verificar si alguien lo empujó
                     Player pusher = lastPlayerContact[player];
                     if (pusher != null)
                     {
-                        // Otorgar 2 puntos al empujador (puedes ajustar el valor)
                         pusher.Score += 2;
-                        
-                        // Actualizar el árbol del empujador con un valor aleatorio entre 1-100
+
                         int pushValue = rnd.Next(1, 100);
                         if (!pusher.IsUsingBST)
                         {
                             pusher.InsertKey(pushValue);
-                            
+
                             if (pusher.Tree.CountNodes() > MaxBTreeNodes)
                             {
-                                // Convertir a BST
                                 pusher.Tree = null;
-                                pusher.BSTree = new BSTree(); // BST limpio, vacío
+                                pusher.BSTree = new BSTree();
                                 pusher.IsUsingBST = true;
                                 treeUpdated = true;
                             }
@@ -327,8 +263,7 @@ namespace Proyecto
 
                             if (pusher.BSTree.CountNodes() > MaxBSTNodes && !pusher.IsUsingAVL)
                             {
-                                // Convertir a AVL
-                                var bstValues = pusher.BSTree.InOrderTraversal(); // Necesitas este método
+                                var bstValues = pusher.BSTree.InOrderTraversal();
                                 pusher.AVLTree = new AVLTree();
                                 foreach (var v in bstValues)
                                     pusher.AVLTree.Insert(v);
@@ -336,24 +271,17 @@ namespace Proyecto
                                 pusher.BSTree = null;
                                 pusher.IsUsingAVL = true;
                             }
-
                         }
 
                         treePanel.Invalidate();
-                        
-                        // Mostrar mensaje de KO en pantalla (puedes implementar esto)
-                        // ShowKOMessage(pusher, player);
                     }
-                    
-                    // Restablecer el último contacto
+
                     lastPlayerContact[player] = null;
-                    
-                    // Respawn del jugador caído
                     RespawnPlayer(player);
                 }
             }
 
-            // Empujón entre jugadores si se tocan
+            // Empujón entre jugadores - ahora considerando Shield
             for (int i = 0; i < players.Count; i++)
             {
                 for (int j = i + 1; j < players.Count; j++)
@@ -365,22 +293,41 @@ namespace Proyecto
                         Rectangle inter = Rectangle.Intersect(a.Bounds, b.Bounds);
                         if (inter.Width > 0)
                         {
-                            // Registrar el contacto entre jugadores
-                            if (a.SpeedX != 0)
-                                lastPlayerContact[b] = a;
-                            
-                            if (b.SpeedX != 0)
-                                lastPlayerContact[a] = b;
-                                
-                            if (a.X < b.X)
+                            bool aHasShield = a.HasShieldActive();
+                            bool bHasShield = b.HasShieldActive();
+
+                            if (!aHasShield && !bHasShield)
                             {
-                                a.X -= inter.Width / 2;
-                                b.X += inter.Width / 2;
+                                if (a.SpeedX != 0)
+                                    lastPlayerContact[b] = a;
+
+                                if (b.SpeedX != 0)
+                                    lastPlayerContact[a] = b;
+
+                                if (a.X < b.X)
+                                {
+                                    a.X -= inter.Width / 2;
+                                    b.X += inter.Width / 2;
+                                }
+                                else
+                                {
+                                    a.X += inter.Width / 2;
+                                    b.X -= inter.Width / 2;
+                                }
                             }
                             else
                             {
-                                a.X += inter.Width / 2;
-                                b.X -= inter.Width / 2;
+                                // Si alguno tiene escudo, solo separar sin registrar contacto
+                                if (a.X < b.X)
+                                {
+                                    a.X -= inter.Width / 2;
+                                    b.X += inter.Width / 2;
+                                }
+                                else
+                                {
+                                    a.X += inter.Width / 2;
+                                    b.X -= inter.Width / 2;
+                                }
                             }
                         }
                     }
@@ -393,11 +340,6 @@ namespace Proyecto
             {
                 foreach (var player in players)
                 {
-                   
-
-
-
-
                     if (player.CurrentChallenges == null || player.CurrentChallenges.Count == 0)
                     {
                         player.CurrentChallenges = challengeManager.GetChallengesFor("BTree");
@@ -419,21 +361,15 @@ namespace Proyecto
 
                                 if (anyChallengeCompleted)
                                 {
-                                    player.BSTree = new BSTree(); // Árbol vacío
+                                    player.BSTree = new BSTree();
                                     player.Tree = null;
                                     player.IsUsingBST = true;
                                     treeUpdated = true;
                                     treePanel.Invalidate();
 
-                                    // Nuevos retos para BST
                                     player.CurrentChallenges = challengeManager.GetChallengesFor("BST");
-                                    
-
-
-
                                 }
                             }
-
                         }
                         else if (!player.IsUsingAVL)
                         {
@@ -447,25 +383,19 @@ namespace Proyecto
 
                                     if (anyChallengeCompleted)
                                     {
-                                        player.AVLTree = new AVLTree(); // Árbol vacío
+                                        player.AVLTree = new AVLTree();
                                         player.BSTree = null;
                                         player.IsUsingAVL = true;
                                         treeUpdated = true;
                                         treePanel.Invalidate();
 
-                                        // Nuevos retos para AVL
                                         player.CurrentChallenges = challengeManager.GetChallengesFor("AVL");
-                                        
-
-
                                     }
                                 }
-
                             }
                         }
                         else
                         {
-                            // Ya está en AVL
                             if (player.AVLTree != null)
                             {
                                 player.AVLTree.Insert(token.Value);
@@ -476,24 +406,18 @@ namespace Proyecto
 
                                     if (anyChallengeCompleted)
                                     {
-                                        // Comenzar un nuevo ciclo: pasar de AVL a nuevo BTree vacío
-                                        player.Tree = new BTree(3); // Puedes ajustar el grado si es variable
+                                        player.Tree = new BTree(3);
                                         player.AVLTree = null;
                                         player.IsUsingBST = false;
                                         player.IsUsingAVL = false;
                                         treeUpdated = true;
                                         treePanel.Invalidate();
 
-                                        // Nuevos retos para el nuevo ciclo de BTree
                                         player.CurrentChallenges = challengeManager.GetChallengesFor("BTree");
-                                        
-
-
                                     }
                                 }
                             }
                         }
-
 
                         treePanel.Invalidate();
                         break;
@@ -501,10 +425,8 @@ namespace Proyecto
                 }
             }
 
-            // Limpiar tokens colectados
             tokens.RemoveAll(t => t.Collected);
 
-            // Si se recogió algún token, generar uno nuevo después de un pequeño retraso
             if (anyTokenCollected && tokens.Count < 5)
             {
                 Timer newTokenTimer = new Timer { Interval = 1000 };
@@ -535,7 +457,7 @@ namespace Proyecto
         private void OnKeyDown(object sender, KeyEventArgs e)
         {
             foreach (var player in players)
-                player.KeyDown(e.KeyCode);
+                player.KeyDown(e.KeyCode, players); // Pasar lista de jugadores para poderes
         }
 
         private void OnKeyUp(object sender, KeyEventArgs e)
@@ -548,22 +470,17 @@ namespace Proyecto
         {
             Graphics g = e.Graphics;
 
-            // Dibujar fondo
             g.Clear(Color.LightSkyBlue);
 
-            // Texto en la parte superior
             Font titleFont = new Font("Arial", 16, FontStyle.Bold);
             g.DrawString("Build B-Tree!", titleFont, Brushes.Black, (this.ClientSize.Width - treePanel.Width) / 2 - 80, 20);
 
-            // Dibujar plataformas
             foreach (var platform in platforms)
                 platform.Draw(g);
 
-            // Dibujar tokens
             foreach (var token in tokens)
                 token.Draw(g);
 
-            // Dibujar jugadores con colores específicos
             for (int i = 0; i < players.Count; i++)
             {
                 Pen playerPen = new Pen(playerColors[i % playerColors.Length], 2);
@@ -574,7 +491,7 @@ namespace Proyecto
         private void InitializeComponent()
         {
             this.SuspendLayout();
-            this.ClientSize = new Size(1150, 600);  // Ventana más ancha para el panel lateral
+            this.ClientSize = new Size(1150, 600);
             this.Name = "MainForm";
             this.Text = "Super Smash Trees";
             this.ResumeLayout(false);

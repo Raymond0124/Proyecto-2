@@ -181,9 +181,9 @@ namespace Proyecto
         }
 
 
-        // ------------------------------------------------------------
-        // 3)  ESCALADO  (idéntico al del BST)
-        // ------------------------------------------------------------
+        
+        //   ESCALADO  (idéntico al del BST)
+       
         private float CalculateScale()
         {
             int d = Depth(Root);

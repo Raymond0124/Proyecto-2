@@ -36,7 +36,7 @@ namespace Proyecto
         }
 
 
-        // Método mejorado de visualización para dibujar el árbol B
+        // visualización para dibujar el árbol B
         public void Traverse(Graphics g, Brush nodeBrush, Pen nodePen, int x, int y, int horizontalSpacing, int verticalSpacing, int depth, float scale)
 
 
@@ -257,10 +257,10 @@ namespace Proyecto
 
             // Escala basada en el número total de claves o niveles
             int totalKeys = CountKeys(Root);
-            int maxKeysBeforeScaling = 10; // puedes ajustar este número
+            int maxKeysBeforeScaling = 10; // se puede ajustar este número
 
             // Escala siempre comienza más pequeña, y se reduce más si crece
-            float scale = 0.6f; // escala inicial más pequeña (ajústalo si quieres)
+            float scale = 0.6f; // escala inicial más pequeña (se puede ajustar)
 
             if (totalKeys > maxKeysBeforeScaling)
             {
